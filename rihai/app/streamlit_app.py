@@ -19,8 +19,10 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from rihai.agent import llm  # noqa: E402
 from rihai.agent.draft import Particulars, draft  # noqa: E402
 from rihai.eligibility import Charge, Prisoner, Status, assess, assess_roster  # noqa: E402
+from rihai.eligibility.s479 import _split_charge  # noqa: E402
 from rihai.law import all_rows, stats  # noqa: E402
 
 st.set_page_config(page_title="Rihai - Section 479 BNSS", page_icon="⚖️", layout="wide")
@@ -28,6 +30,17 @@ st.set_page_config(page_title="Rihai - Section 479 BNSS", page_icon="⚖️", la
 st.title("Rihai")
 st.caption("Release eligibility of undertrial prisoners under Section 479 of the Bharatiya Nagarik Suraksha Sanhita, 2023. "
            "The code decides; the model narrates. Drafts are for review by legal-aid counsel before filing.")
+
+with st.sidebar:
+    st.markdown("**How it works**")
+    st.markdown("1. The rule in s.479 runs as code over the roster: charges, custody date, prior convictions.\n"
+                "2. Eligible cases get a template application and a DLSA memo in English, Hindi or Marathi.\n"
+                "3. A citation gate checks every section in every draft against the law table.\n"
+                "4. A model may rewrite the prose; its version is used only if the gate passes and every date, "
+                "day count and section is unchanged.")
+    st.markdown(f"Model for prose: **{'configured (' + str(llm.config()['model']) + ')' if llm.available() else 'none; template mode'}**")
+    st.caption("Keys live in Streamlit secrets or environment variables, never in the repository.")
+    st.markdown("[Source and law table on GitHub](https://github.com/SainathGaikwad/rihai)")
 
 STATUS_HELP = {
     "ELIGIBLE": "Threshold under s.479(1) met: release on bond (first-time) or bail.",
@@ -64,9 +77,12 @@ with tab1:
         lang = st.radio("Application language", ["en", "hi", "mr"], horizontal=True,
                         format_func=lambda k: {"en": "English", "hi": "हिंदी", "mr": "मराठी"}[k],
                         help="Statutory references stay in English in every language; the citation gate runs on all three.")
+        use_model = st.checkbox("Let the model rewrite the prose (gated)", value=False, disabled=not llm.available(),
+                                help="Only offered when a model is configured. Its text replaces the template only if the "
+                                     "citation gate passes and every date, day count and section survives unchanged.")
 
     if st.button("Assess", type="primary"):
-        charges = [Charge(*_split(c)) for c in charges_txt.split(",") if c.strip()]
+        charges = [Charge(*_split_charge(c)) for c in charges_txt.split(",") if c.strip()]
         p = Prisoner(charges=charges, custody_start=custody, first_time_offender=first, multiple_cases_pending=multi,
                      delay_attributable_days=int(delay), identifier=ident)
         a = assess(p, as_of=as_of)
@@ -87,14 +103,24 @@ with tab1:
                                police_station=ps or "________", fir_no=fir or "____ of 20__", case_no=case or "____ of 20__",
                                jail=jail, court=court)
             d = draft(a, part, lang=lang)
-            st.markdown("#### Citation gate")
+            application = d["application"]
             g = d["gate"]
+            if use_model:
+                with st.spinner("Model rewriting the prose; gate checking it"):
+                    pol = llm.polish(application, a, lang=lang)
+                application = pol.text
+                (st.info if pol.polished else st.warning)(pol.reason + (f" (missing: {', '.join(pol.missing_anchors)})" if pol.missing_anchors else ""))
+                from rihai.gate import check as _gate_check
+                g = _gate_check(application)
+            st.markdown("#### Citation gate")
             (st.success if not g.blocked else st.error)(g.summary())
+            with st.expander("Citations read"):
+                st.table([{"act": c.act, "section": c.section, "as written": c.text, "ok": c.ok, "note": c.reason} for c in g.citations])
             st.markdown("#### DLSA / UTRC memo")
             st.code(d["memo"], language=None)
             st.markdown("#### Application (review before filing)")
-            st.text_area("application", d["application"], height=600, label_visibility="collapsed")
-            st.download_button("Download application (.txt)", d["application"], file_name=f"s479_application_{ident}_{lang}.txt")
+            st.text_area("application", application, height=600, label_visibility="collapsed")
+            st.download_button("Download application (.txt)", application, file_name=f"s479_application_{ident}_{lang}.txt")
         else:
             part = Particulars(jail=jail, court=court)
             st.markdown("#### DLSA / UTRC memo")
@@ -130,7 +156,7 @@ with tab2:
         } for a in out])
         counts = res["status"].value_counts().to_dict()
         st.markdown("**Summary:** " + " · ".join(f"{k} {v}" for k, v in counts.items()))
-        st.dataframe(res, use_container_width=True, hide_index=True)
+        st.dataframe(res, width='stretch', hide_index=True)
         st.download_button("Download results (.csv)", res.to_csv(index=False), file_name="rihai_results.csv")
         elig = [a for a in out if a.eligible]
         if elig:
@@ -150,9 +176,5 @@ with tab3:
         m = tdf.apply(lambda row: q.lower() in f"{row['act']} {row['section']} {row['title']}".lower(), axis=1)
         tdf = tdf[m]
     st.dataframe(tdf[["act", "section", "title", "max_years", "min_years", "life", "death", "life_if", "umbrella", "verified", "notes"]],
-                 use_container_width=True, hide_index=True, height=600)
+                 width='stretch', hide_index=True, height=600)
 
-
-def _split(c: str):
-    from rihai.eligibility.s479 import _split_charge
-    return _split_charge(c)

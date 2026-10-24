@@ -58,8 +58,10 @@ def draft_application(charges: list[str], custody_start: str, first_time_offende
              "first_time_offender": first_time_offender, "multiple_cases_pending": multiple_cases_pending,
              "delay_attributable_days": delay_attributable_days}]
     a = assess_roster(rows, as_of=date.fromisoformat(as_of) if as_of else None)[0]
-    p = Particulars(**json.loads(particulars_json or "{}"))
-    d = draft(a, p, lang=lang)
+    raw = particulars_json if isinstance(particulars_json, dict) else json.loads(particulars_json or "{}")
+    known = {k: v for k, v in (raw or {}).items() if k in Particulars.__dataclass_fields__}
+    p = Particulars(**known)
+    d = draft(a, p, lang=lang if lang in ("en", "hi", "mr") else "en")
     g = d["gate"]
     return json.dumps({
         "status": a.status.value,
@@ -112,7 +114,10 @@ def sdk_tools():
         desc, schema = _SPECS[f.__name__]
 
         async def _handler(args, _f=f):
-            return {"content": [{"type": "text", "text": _f(**args)}]}
+            try:
+                return {"content": [{"type": "text", "text": _f(**{k: v for k, v in args.items() if v is not None})}]}
+            except Exception as e:  # the model sees why, instead of a dead tool
+                return {"content": [{"type": "text", "text": json.dumps({"error": f"{type(e).__name__}: {e}"})}], "is_error": True}
 
         out.append(tool(f.__name__, desc, schema)(_handler))
     return out

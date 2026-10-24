@@ -190,15 +190,26 @@ def dlsa_memo_en(a: Assessment, p: Particulars) -> str:
     """Two-paragraph note for the DLSA Secretary / UTRC list. No name, roster identifier only."""
     c = a.controlling
     sec_c = c.section.split("/")[-1] if c else "____"
-    line = {
-        Status.ELIGIBLE: f"eligible under s.479(1) BNSS since {_d(a.eligible_on)} ({'first-time offender, one-third' if a.prisoner.first_time_offender else 'one-half'} of {_years_words(c.max_years)} for {c.act} s.{sec_c}); {a.days_served} days in custody as on {_d(a.as_of)}; release on {a.release_mode}.",
-        Status.MUST_RELEASE_MAX_TERM: f"detained beyond the maximum term of {_years_words(c.max_years)} for {c.act} s.{sec_c} since {_d(a.max_term_end)}; third proviso to s.479(1) BNSS - release is mandatory.",
-        Status.NOT_YET: f"not yet eligible; threshold for {c.act} s.{sec_c} reached on {_d(a.eligible_on)}.",
-        Status.EXCLUDED_LIFE_OR_DEATH: "excluded: an offence charged carries death or life imprisonment.",
-        Status.EXCLUDED_MULTIPLE_CASES: "s.479(2): other case(s) pending - verify; maximum-term cap still applies.",
-        Status.NEEDS_REVIEW: "needs review: " + "; ".join(a.reasons),
-        Status.UNKNOWN_SECTION: "refused: " + "; ".join(a.reasons),
-    }[a.status]
+    act_c = c.act if c else "____"
+    max_c = _years_words(c.max_years) if c else "____"
+    # one branch per status; no f-string may touch `c` on a path where there is no controlling section
+    if a.status == Status.ELIGIBLE:
+        line = (f"eligible under s.479(1) BNSS since {_d(a.eligible_on)} "
+                f"({'first-time offender, one-third' if a.prisoner.first_time_offender else 'one-half'} of {max_c} for {act_c} s.{sec_c}); "
+                f"{a.days_served} days in custody as on {_d(a.as_of)}; release on {a.release_mode}.")
+    elif a.status == Status.MUST_RELEASE_MAX_TERM:
+        line = (f"detained beyond the maximum term of {max_c} for {act_c} s.{sec_c} since {_d(a.max_term_end)}; "
+                f"third proviso to s.479(1) BNSS - release is mandatory.")
+    elif a.status == Status.NOT_YET:
+        line = f"not yet eligible; threshold for {act_c} s.{sec_c} reached on {_d(a.eligible_on)}."
+    elif a.status == Status.EXCLUDED_LIFE_OR_DEATH:
+        line = "excluded: an offence charged carries death or life imprisonment."
+    elif a.status == Status.EXCLUDED_MULTIPLE_CASES:
+        line = "s.479(2): other case(s) pending - verify; maximum-term cap still applies."
+    elif a.status == Status.NEEDS_REVIEW:
+        line = "needs review: " + "; ".join(a.reasons)
+    else:
+        line = "refused: " + "; ".join(a.reasons)
     unv = f"\nLaw-table rows used but not yet verified against India Code: {', '.join(a.unverified)}." if a.unverified else ""
     return (f"UTRC / DLSA note - {p.jail}\n"
             f"UTP ref: {a.prisoner.identifier or '____'} | Charges: {', '.join(str(x) for x in a.prisoner.charges)} | Custody since {_d(a.prisoner.custody_start)}\n"

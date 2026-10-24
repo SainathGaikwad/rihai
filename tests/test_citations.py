@@ -37,3 +37,31 @@ def test_blocks_wrong_procedural_section():
 def test_no_citations_is_pass():
     r = check("The applicant prays for release on bond.")
     assert not r.blocked and r.citations == []
+
+
+# ---- references without an Act name: the hole a model-written draft would otherwise slip through
+
+def test_bare_invented_section_is_blocked():
+    g = check("The applicant is covered by Section 999.")
+    assert g.blocked and "without an Act" in g.summary()
+
+
+def test_bare_real_section_resolves_against_the_acts_the_text_names():
+    g = check("Charged under Section 303(2) of the Bharatiya Nyaya Sanhita, 2023; Section 303(2) is bailable in this sense.")
+    assert not g.blocked and all(c.ok for c in g.citations)
+
+
+def test_the_sanhita_shorthand_resolves_but_cannot_invent():
+    assert not check("Section 479(2) of the Sanhita has no application.").blocked
+    assert check("Section 999 of the Sanhita applies.").blocked
+
+
+def test_devanagari_forms_are_read():
+    assert not check("भारतीय न्याय संहिता की धारा 303(2)").blocked
+    assert not check("कलम 303(2) भारतीय न्याय संहिता, 2023").blocked
+    assert check("धारा 999 के तहत").blocked
+
+
+def test_sentence_endings_and_paragraph_numbers_are_not_sections():
+    assert check("true to my knowledge and belief.\n\n3. The offence").citations == []
+    assert check("for 652 days. 3 years later").citations == []

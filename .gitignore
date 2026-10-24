@@ -11,3 +11,5 @@ venv/
 # real rosters never go in the repo - only data/samples/ (synthetic)
 data/rosters/
 *.xlsx
+# local runs of python -m rihai.agent.run --out
+out/
