@@ -22,4 +22,4 @@ With respect,
 
 Sainath Gaikwad
 Pune | gaikwadsainath738@gmail.com | [phone]
-github.com/SainathGaikwad/rihai
+github.com/SainathGaikwad/rihai | try it: rihai-pune.streamlit.app

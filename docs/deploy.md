@@ -5,6 +5,8 @@ hackathon submission.
 
 ## 1. Streamlit Community Cloud (free, public URL, ~5 minutes)
 
+Deployed on 24 October 2026: **https://rihai-pune.streamlit.app** (app `rihai-pune`, account sainathgaikwad, redeploys on every push to `main`).
+
 Prerequisites: the repo is public on GitHub (`SainathGaikwad/rihai`, branch `main`) and `requirements.txt` is at
 the root. Both are already true.
 
@@ -14,7 +16,7 @@ the root. Both are already true.
    - Repository: `SainathGaikwad/rihai`
    - Branch: `main`
    - Main file path: `rihai/app/streamlit_app.py`
-   - App URL: pick `rihai` if it is free, so the address reads `https://rihai.streamlit.app`
+   - App URL: `rihai-pune` (subdomains need 6 to 63 characters), so the address reads `https://rihai-pune.streamlit.app`
 4. Click **Advanced settings** only if you want the model layer on:
    - Python version: 3.11 or 3.12
    - Secrets (TOML), one key per line. Paste the real values there and nowhere else:

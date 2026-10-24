@@ -17,8 +17,8 @@ Prayas has worked inside Yerawada on exactly this for longer than anyone. Would 
 anonymised case files through it (no names, only charge sections and dates) and tell us where it is wrong? A
 15-minute call would also help us understand how the UTRC list is actually prepared in Pune.
 
-The code and a sample output are at github.com/SainathGaikwad/rihai. It is MIT-licensed; you keep it whatever
-comes of this.
+You can try it in a browser at rihai-pune.streamlit.app (a sample roster is built in; no names anywhere). The code is at
+github.com/SainathGaikwad/rihai. It is MIT-licensed; you keep it whatever comes of this.
 
 Thank you for your time.
 

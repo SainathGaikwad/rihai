@@ -18,7 +18,7 @@ Your clinic's students visit Yerawada and see these files every week. We would l
 In return the clinic gets a tool it can keep (MIT licence), a list of its own Section 479-eligible cases, and credit
 in the write-up. We are happy to come to the college with a laptop at any time that suits you.
 
-The code and a sample output are at github.com/SainathGaikwad/rihai.
+You can try it in a browser at rihai-pune.streamlit.app (sample roster built in). The code is at github.com/SainathGaikwad/rihai.
 
 Thank you,
 

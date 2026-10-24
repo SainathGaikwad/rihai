@@ -13,7 +13,7 @@ CHRI's undertrial work is the reason the problem is on the national agenda. We w
 on where the rule as we have encoded it is wrong or contested (we have put the whole encoding in one file with the
 section text alongside), and any pointer to anonymised roster data in the UTRC Annexure format we could test on.
 
-We are piloting in Pune with the law-college clinics and, we hope, the DLSA. The code is at
+We are piloting in Pune with the law-college clinics and, we hope, the DLSA. It runs in a browser at rihai-pune.streamlit.app; the code is at
 github.com/SainathGaikwad/rihai under the MIT licence.
 
 Thank you,

@@ -4,6 +4,7 @@
 The code decides; the model narrates.
 
 Bharat Agentic-AI Hackathon 2026 (Code for India), impact area: Timely Justice / Legal Backlog.
+Live: **https://rihai-pune.streamlit.app** (template mode, sample roster built in, no names anywhere).
 Built in AgentFoundry. MIT licence. Built by Sainath Gaikwad (Pune); field pilot with Pushkar.
 
 ## The problem

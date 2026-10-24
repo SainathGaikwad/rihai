@@ -1,96 +1,126 @@
-# Submission draft: Bharat Agentic-AI Hackathon 2026 (Code for India)
+# Submission draft: Code for a Billion (Code for India), Bharat Agentic-AI Hackathon 2026
 
-Deadline 15 November 2026. Submission is a GitHub issue on `karlmehta/code-for-a-billion`. Fill the `[...]` fields
-on the day; everything else is current. Judging is 25% each on size of problem, severity, quality of solution and
-**proven impact** ("actual deployment data, not intentions"), so the pilot numbers section is the one that wins or
-loses and must contain only what actually happened.
+Deadline 15 November 2026. The submission is a GitHub issue on `karlmehta/code-for-a-billion`, filed through the
+"Project Submission" form. The fields below are the form's fields, in its order, so each block can be pasted into
+its box on the day. Fill every `[...]` with a real value or delete the line.
+
+How it is scored (JUDGING.md): four criteria, 25 points each. Size of the problem and severity of the problem
+are answered in one box ("Scale & severity", 50%). Proven impact is its own box (25%) and breaks ties, so it is
+written last from the outreach log, with nothing estimated. The README lists prizes of $10,000 / $5,000 / $2,500
+overall (not per track); the website says otherwise, which was raised with the organisers on [date].
 
 ---
 
-**Title:** Rihai: Section 479 BNSS release eligibility for undertrial prisoners, with a citation-gated drafter
+## Title
 
-**Team:** Sainath Gaikwad (build, Pune) with Pushkar [surname] (field pilot, Pune). Solo developer.
+`[Submission] Rihai: Section 479 BNSS release eligibility for undertrial prisoners`
 
-**Impact area / track:** Timely Justice / Legal Backlog
+## Team / Project name
 
-**Repo:** https://github.com/SainathGaikwad/rihai (MIT)
+Rihai (रिहाई)
 
-**Live demo:** [https://rihai.streamlit.app]
+## Team members (names + GitHub handles)
 
-**Demo video:** [link, under 3 minutes]
+Sainath Gaikwad (@SainathGaikwad), build. Pushkar [surname], field pilot, Pune (no GitHub handle).
 
-**Built in AgentFoundry:** yes. Project `rihai`, Claude Agent SDK scaffold. The six tools in `rihai/agent/tools.py`
-are the agent's whole tool surface; `rihai/agent/run.py` is the harness with the PreToolUse and Stop guardrails.
-[screenshot of the AgentFoundry project attached]
+## Problem statement
 
-## The problem
+Three in four people in Indian prisons have not been convicted of anything. Section 479 of the Bharatiya Nagarik
+Suraksha Sanhita, 2023 says an undertrial must be released on bail after serving half the maximum sentence for the
+offence charged, a first-time offender on bond after one-third, and nobody may be held beyond the maximum term.
+The Supreme Court has ordered every state to apply it proactively, yet in nine months only 334 people were
+released under it nationally, because eligibility is checked by hand, jail by jail, once a quarter. Rihai is for the
+jail superintendent, the District Legal Services Authority secretary and the prison legal-aid clinic who have to
+find those people.
 
-India's prisons held 5,34,993 people in September 2025 (NALSA UTRC report, Q3 2025); roughly three in four are
-undertrials, people not convicted of anything. Section 479 of the Bharatiya Nagarik Suraksha Sanhita, 2023, in
-force since 1 July 2024, entitles an undertrial to release on bail after serving half the maximum sentence for the
-offence charged, a first-time offender to release on bond after one-third, and nobody may be held beyond the
-maximum term. The Supreme Court directed every state to apply it proactively (*In Re: Inhuman Conditions in 1382
-Prisons*, W.P.(C) 406/2013, orders of 23 August and 22 October 2024).
+## What you built
 
-Between July 2024 and April 2025, 951 undertrials were identified under the section and 334 released nationally
-(Rajya Sabha, 3 April 2025). In Q3 2025, 591 identified and 393 released (NALSA). Against a population in the
-lakhs, that is the gap. The bottleneck is identification: the jail compiles a list by hand, the District Legal
-Services Authority checks it by hand, the Undertrial Review Committee meets once a quarter. The arithmetic is a
-date, a fraction and a maximum sentence, and nobody runs it continuously.
+Rihai takes a prison roster (charge sections, custody start date, prior convictions, pending cases) and computes
+Section 479 eligibility deterministically against a law table of maximum sentences (755 rows: BNS 2023, IPC 1860,
+17 special Acts). Every rule in the engine maps to a line of the section; unknown sections are refused, ambiguous
+ones come back as "needs review" with the reason, life and death offences are excluded as the section requires.
+For every eligible prisoner it drafts the application to the court and the memo for the DLSA/Undertrial Review
+Committee, in English, Hindi or Marathi, from the assessment alone, so no figure in a draft can differ from what
+the engine computed. A citation gate then checks every statutory reference in every draft (template or
+model-written, English or Devanagari) against the law table; a bare "Section 999" blocks the draft.
 
-## What Rihai does
+The agent was built in AgentFoundry on the Claude Agent SDK scaffold. The model gets six tools (`lookup_section`,
+`check_eligibility`, `assess_roster_tool`, `draft_application`, `check_citations`, `law_table_stats`) and nothing
+else: built-in tools are off, a PreToolUse hook denies any other tool, a Stop hook runs the citation gate over the
+model's final answer and sends it back if a section does not resolve. The model can narrate; it cannot compute a
+date or a maximum term or invent a section. A second, optional prose layer lets any OpenAI-compatible model
+rewrite a draft, and its text is used only if the gate passes and every date, day count and section is unchanged.
+With no model configured, Rihai still works end to end. Rihai files nothing and decides nothing: legal-aid counsel
+reviews, the court decides. 53 automated tests. MIT licence. No prisoner name anywhere in the code or data.
 
-1. **Eligibility as code.** A prison roster (charge sections, custody start, prior convictions, pending cases) goes
-   through `rihai/eligibility/s479.py`, which encodes each line of Section 479 against a law table of maximum
-   sentences (755 rows: BNS, IPC, 17 special Acts). Unknown sections are refused. Ambiguous ones (a bare section
-   with sub-sections of different maxima; attempt to murder where life depends on hurt caused) come back as
-   `NEEDS_REVIEW` with the reason. Life or death offences are excluded as the section requires. Calendar arithmetic
-   is done the way courts count sentences.
-2. **Drafts from the assessment only.** For every eligible prisoner Rihai writes the Section 479 application and
-   the DLSA/UTRC memo in English, Hindi or Marathi. In template mode no model is involved, so no figure in the
-   draft can differ from what the engine computed.
-3. **A citation gate.** Every statutory reference in any draft, template or model-written, English or Devanagari,
-   must resolve to the law table or the short list of procedural provisions a s.479 application may cite. A bare
-   "Section 999" with no Act, or "Section 999 of the Sanhita", blocks the draft.
-4. **A model that narrates and cannot decide.** The agent (Claude Agent SDK; any OpenAI-compatible model for the
-   prose layer) has six tools and no others. It cannot compute a date or a maximum term; it can only call the
-   engine and rewrite prose, and its rewrite is used only if the gate passes and every date, day count and
-   section survives unchanged. If a model is down, Rihai still works.
+Impact area on the hackathon site: Timely Justice / Legal Backlog.
 
-Rihai files nothing and decides nothing. Legal-aid counsel reviews; the court decides.
+## GitHub repository URL
 
-## Quality of solution
+https://github.com/SainathGaikwad/rihai
 
-- 53 automated tests on the rule, the gate, the drafter in three languages, the model-acceptance contract, the
-  agent guardrails and the front end.
-- Every law-table row carries a `verified` flag and the India Code handle; `scripts/verify.py` records each row a
-  reviewer checks. The engine reports which unverified rows an assessment relied on.
-- The sample roster of 25 synthetic cases exercises every status: 10 eligible, 1 held beyond the maximum term,
-  8 not yet, 2 excluded (life), 1 excluded (other case pending), 2 needing review, 1 unknown section.
-- No prisoner names anywhere in the code or data; real rosters never enter the repository.
+## Demo URL (live app or video)
 
-## Proven impact (the pilot)
+https://rihai-pune.streamlit.app  [and the video link, under 3 minutes]
 
-Pune. Yerawada Central Prison (about 7,000 inmates), the prison legal-aid clinics of ILS Law College, Symbiosis
-Law School and DES Law College, the Pune DLSA, and Prayas (TISS), which has worked in Yerawada for decades.
+## Scale & severity of the problem  (judged, 50%)
 
-Fill with real numbers only; leave a line out rather than estimate it.
+Scale. India's prisons held 5,30,333 people on 31 December 2023, 73.5% of them undertrials, in 1,332 prisons
+built for 4,39,119, an occupancy of 120.8% (NCRB, Prison Statistics India 2023). NALSA's Undertrial Review
+Committee report for July to September 2025 counts 5,34,993 prisoners. Section 479 applies to every one of the
+roughly 3.9 lakh undertrials; the share that has already crossed the one-third or one-half threshold is not
+published anywhere, which is itself the problem: nobody computes it. Maharashtra alone holds [n] prisoners in
+[n] jails at [n]% occupancy; Yerawada Central Prison, Pune, where the pilot runs, holds about 7,000 against a
+capacity of about 2,400 [verify from the Maharashtra Prisons Department].
 
-- Organisations met: [names, dates]
-- Case files run through Rihai (anonymised, identifiers only): [n]
-- Of those, found eligible by Rihai: [n]; confirmed by the clinic's lawyer: [n]; Rihai wrong: [n, with reason]
-- Applications drafted: [n]; filed through LADC: [n]; orders received: [n]
-- Time per case before (clinic's own estimate) and with Rihai: [minutes]
+Severity. An undertrial who has crossed the threshold is, from that day, in prison without any legal basis for it:
+the section says "shall be released". The person loses income, the family often loses its only earner, bail that
+could have been given on a personal bond is never applied for, and the state pays to hold them: the sanctioned
+prison budget of all states and union territories was ₹10,035.6 crore for 2023-24 (NCRB), about ₹1.9 lakh per
+inmate-year. The Supreme Court directed every state to apply Section 479 proactively (*In Re: Inhuman Conditions
+in 1382 Prisons*, W.P.(C) 406/2013, orders of 23 August and 22 October 2024). The result between July 2024 and
+April 2025: 951 undertrials identified as eligible and 334 released in the whole country (Rajya Sabha, 3 April
+2025); in the quarter July to September 2025, 591 identified and 393 released (NALSA UTRC report). Against a
+population of 3.9 lakh undertrials, the section is reaching a few hundred people a quarter. The bottleneck is not
+the courts; it is the list. The jail compiles it by hand, the DLSA checks it by hand, the Undertrial Review
+Committee meets once a quarter, and the arithmetic (a date, a fraction, a maximum sentence) is never run
+continuously across 1,332 prisons.
+
+## Deployment & impact data  (judged, 25%; ties are broken on this)
+
+Write only what happened. A line with no real number is deleted, not estimated.
+
+- Organisations met, with dates: [Prayas (TISS) Pune; Pune DLSA; ILS Law College legal-aid clinic; Symbiosis Law
+  School clinic; DES Law College clinic; CHRI; Project 39A]
+- Anonymised case files run through Rihai (identifiers only): [n]
+- Found eligible by Rihai: [n]. Confirmed by the clinic's lawyer: [n]. Rihai wrong: [n], with the reason and the fix
+- Applications drafted: [n]. Filed through the Legal Aid Defence Counsel: [n]. Orders received: [n], people
+  released: [n]
+- Time per case, clinic's own estimate before and measured with Rihai: [minutes]
 - Law-table rows verified against India Code by law students: [n] of 755
-- Letters of intent / MoU: [who]
+- Letter of intent / MoU / written feedback: [who, date, attached to the issue]
 
-## Why it will keep working after the hackathon
+## Track / category
 
-The code is MIT, has no paid dependency, runs on a laptop without internet, and the rule it encodes is a statute
-that changes rarely. The legal clinics already have the students and the access; what they lacked was the
-arithmetic at scale. The next steps are OCR of scanned jail registers, splitting IPC 392 into its two limbs, and
-verifying the remaining law-table rows.
+Governance  (the dropdown has no justice track; Governance is the closest. "Other" is the alternative.)
+
+## Contact email
+
+gaikwadsainath738@gmail.com
+
+## Confirmations
+
+- [x] Built using AgentFoundry (AF), the official IDE
+- [x] Our repository is public and includes a README with setup steps
+- [x] The demo link works and is accessible to judges
 
 ---
 
-*Draft prepared 24 October 2026. Rewrite the pilot section from the outreach log before posting.*
+Attach to the issue: a screenshot of the AgentFoundry project showing the agent and its tools; the demo video link;
+any written feedback from a clinic or the DLSA (with names of staff only with their consent, never a prisoner's).
+
+Sources for the numbers above: NCRB Prison Statistics India 2023 (ncrb.gov.in/uploads/files/PSI-2023.pdf; confirm
+the page numbers from the PDF before posting); NALSA UTRC quarterly report Q3 2025; Rajya Sabha unstarred question
+reply of 3 April 2025 on Section 479 BNSS; Supreme Court orders of 23.08.2024 and 22.10.2024 in W.P.(C) 406/2013.
+
+*Draft prepared 24 October 2026. Rewrite the deployment section from the outreach log before posting.*
