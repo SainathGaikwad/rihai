@@ -1,0 +1,19 @@
+Rihai - third-party data and attributions
+
+1. IPC-BNS-CrPC-BNSS-IEA-BSA Respective Old & New Sections Mapping
+   Author: GSMS-B (https://huggingface.co/GSMS-B)
+   Source: https://github.com/GSMS-B/ipc-bns-crpc-bnss-iea-bsa-respective-old-new-sections-mapping
+   Licence: Creative Commons Attribution 4.0 International (CC BY 4.0)
+   Files: data/law/concordance_bns_to_ipc.json, data/law/concordance_ipc_to_bns.json (unmodified copies)
+   Used for: section numbers, titles, chapters and the IPC <-> BNS mapping in the law table.
+
+2. Statutes
+   The Bharatiya Nyaya Sanhita, 2023; the Bharatiya Nagarik Suraksha Sanhita, 2023; the Indian Penal Code, 1860;
+   and the special Acts referenced in rihai/law/punishments_special.py are Acts of the Indian legislature and are
+   not subject to copyright (Copyright Act, 1957, s.52(1)(q)). Official text: https://www.indiacode.nic.in
+
+3. Figures quoted in the README and docs
+   NALSA, Under Trial Review Committee report, Q3 2025 (July-September 2025);
+   Rajya Sabha written reply, Minister of State for Home Affairs, 3 April 2025;
+   Supreme Court of India, In Re: Inhuman Conditions in 1382 Prisons, W.P.(C) No. 406 of 2013, orders of
+   23 August 2024 and 22 October 2024.

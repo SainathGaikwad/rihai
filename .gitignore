@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+.env
+.streamlit/secrets.toml
+*.log
+# AgentFoundry local state that should not be committed
+.codenow/agent-drafts/
+# real rosters never go in the repo - only data/samples/ (synthetic)
+data/rosters/
+*.xlsx

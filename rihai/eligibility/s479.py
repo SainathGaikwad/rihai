@@ -1,0 +1,264 @@
+"""Section 479, Bharatiya Nagarik Suraksha Sanhita, 2023 - the rule, encoded.
+
+    479. Maximum period for which undertrial prisoner can be detained.
+    (1) Where a person has, during the period of investigation, inquiry or trial under this Sanhita of an offence
+        under any law (not being an offence for which the punishment of death or life imprisonment has been
+        specified as one of the punishments under that law) undergone detention for a period extending up to
+        one-half of the maximum period of imprisonment specified for that offence under that law, he shall be
+        released by the Court on bail:
+        Provided that where such person is a first-time offender (who has never been convicted of any offence in
+        the past) he shall be released on bond by the Court, if he has undergone detention for the period extending
+        up to one-third of the maximum period of imprisonment specified for such offence under that law:
+        Provided further that the Court may, after hearing the Public Prosecutor and for reasons to be recorded by
+        it in writing, order the continued detention of such person for a period longer than one-half of the said
+        period or release him on bail bond instead of his bond:
+        Provided also that no such person shall in any case be detained during the period of investigation, inquiry
+        or trial for more than the maximum period of imprisonment provided for the said offence under that law.
+        Explanation. - In computing the period of detention under this section for granting bail, the period of
+        detention passed due to delay in proceeding caused by the accused shall be excluded.
+    (2) Notwithstanding anything in sub-section (1), and subject to the third proviso thereof, where an
+        investigation, inquiry or trial in more than one offence or in multiple cases are pending against a person,
+        he shall not be released on bail by the Court.
+    (3) The Superintendent of jail, where the accused person is detained, on completion of one-half or one-third of
+        the period mentioned in sub-section (1), as the case may be, shall forthwith make an application in writing
+        to the Court to proceed under sub-section (1) for the release of such person on bail.
+
+Everything below is a direct encoding of that text. Where the text leaves room for argument (the "more than one
+offence" bar in (2); the half-of-life reading of attempts; sections with no stated ceiling) the engine returns
+NEEDS_REVIEW with the reason, instead of deciding.
+
+The Supreme Court in *In Re: Inhuman Conditions in 1382 Prisons* (W.P.(C) 406/2013, orders of 23 Aug and 22 Oct
+2024) directed that s.479 applies to all undertrials regardless of when the case was registered.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date, timedelta
+from enum import Enum
+from typing import Optional
+
+from ..law import Row, UnknownSection, lookup
+
+try:
+    from dateutil.relativedelta import relativedelta
+except ImportError:  # pragma: no cover - dateutil is in requirements, but keep the engine importable
+    relativedelta = None
+
+
+class Status(str, Enum):
+    ELIGIBLE = "ELIGIBLE"                              # threshold met: s.479(1) release on bail / on bond
+    MUST_RELEASE_MAX_TERM = "MUST_RELEASE_MAX_TERM"    # third proviso: detained >= maximum term, no discretion
+    NOT_YET = "NOT_YET"                                # threshold not yet met; eligible_on tells when
+    EXCLUDED_LIFE_OR_DEATH = "EXCLUDED_LIFE_OR_DEATH"  # an offence carries death or life as a specified punishment
+    EXCLUDED_MULTIPLE_CASES = "EXCLUDED_MULTIPLE_CASES"  # s.479(2)
+    NEEDS_REVIEW = "NEEDS_REVIEW"                      # the law table cannot settle it without a human
+    UNKNOWN_SECTION = "UNKNOWN_SECTION"                # a charge is not in the law table: refuse
+
+
+@dataclass
+class Charge:
+    act: str
+    section: str
+
+    def __str__(self) -> str:
+        return f"{self.act} s.{self.section}"
+
+
+@dataclass
+class Prisoner:
+    charges: list[Charge]
+    custody_start: date                    # date of arrest / first remand - detention counts from here
+    first_time_offender: bool              # "never been convicted of any offence in the past"
+    multiple_cases_pending: bool = False   # s.479(2): investigation/inquiry/trial in more than one case pending
+    delay_attributable_days: int = 0       # Explanation: delay caused by the accused, excluded from the count
+    identifier: str = ""                   # roster id / UTP number - never a name in logs
+
+
+@dataclass
+class Assessment:
+    status: Status
+    as_of: date
+    prisoner: Prisoner
+    controlling: Optional[Row] = None          # the charge with the longest maximum term
+    rows: list[Row] = field(default_factory=list)
+    max_term_years: Optional[float] = None
+    fraction: Optional[float] = None           # 1/3 or 1/2
+    threshold_days: Optional[int] = None
+    days_served: Optional[int] = None          # custody days minus delay attributable to the accused
+    eligible_on: Optional[date] = None         # date the threshold is / was crossed
+    max_term_end: Optional[date] = None        # third proviso date
+    release_mode: Optional[str] = None         # "bond" (first-time) or "bail"
+    reasons: list[str] = field(default_factory=list)
+    unverified: list[str] = field(default_factory=list)   # rows used that nobody has checked against India Code yet
+
+    @property
+    def eligible(self) -> bool:
+        return self.status in (Status.ELIGIBLE, Status.MUST_RELEASE_MAX_TERM)
+
+    def to_dict(self) -> dict:
+        return {
+            "status": self.status.value,
+            "as_of": self.as_of.isoformat(),
+            "identifier": self.prisoner.identifier,
+            "charges": [str(c) for c in self.prisoner.charges],
+            "controlling": self.controlling.key if self.controlling else None,
+            "max_term_years": self.max_term_years,
+            "fraction": self.fraction,
+            "threshold_days": self.threshold_days,
+            "days_served": self.days_served,
+            "eligible_on": self.eligible_on.isoformat() if self.eligible_on else None,
+            "max_term_end": self.max_term_end.isoformat() if self.max_term_end else None,
+            "release_mode": self.release_mode,
+            "first_time_offender": self.prisoner.first_time_offender,
+            "reasons": self.reasons,
+            "unverified": self.unverified,
+        }
+
+
+def _add_years(d: date, years: float) -> date:
+    """Calendar arithmetic the way courts count sentences: whole years then months, not 365.25-day floats."""
+    whole = int(years)
+    months = int(round((years - whole) * 12))
+    if relativedelta is not None:
+        return d + relativedelta(years=whole, months=months)
+    # fallback without dateutil: approximate
+    return d + timedelta(days=int(round(years * 365.25)))
+
+
+def assess(p: Prisoner, as_of: Optional[date] = None) -> Assessment:
+    as_of = as_of or date.today()
+    a = Assessment(status=Status.NEEDS_REVIEW, as_of=as_of, prisoner=p)
+
+    if not p.charges:
+        a.reasons.append("no charges given")
+        return a
+
+    # 1. Resolve every charge. Unknown -> refuse. Umbrella -> needs the sub-section.
+    rows: list[Row] = []
+    for c in p.charges:
+        try:
+            r = lookup(c.act, c.section)
+        except UnknownSection as e:
+            a.status = Status.UNKNOWN_SECTION
+            a.reasons.append(str(e))
+            return a
+        if r.umbrella:
+            a.status = Status.NEEDS_REVIEW
+            a.reasons.append(f"{r.key}: specify the sub-section; variants {', '.join(r.variants)}. {r.notes}".strip())
+            return a
+        rows.append(r)
+        if not r.verified:
+            a.unverified.append(r.key)
+    a.rows = rows
+
+    # 2. Statutory exclusion: any offence with death or life as a specified punishment.
+    for r in rows:
+        if r.excluded_life_or_death:
+            a.status = Status.EXCLUDED_LIFE_OR_DEATH
+            a.reasons.append(f"{r.key} ({r.title or 'untitled'}): {'death' if r.death else 'life imprisonment'} is a specified punishment; s.479 does not apply. {r.notes}".strip())
+            return a
+
+    # 3. Conditional life (e.g. attempt to murder if hurt caused) -> a human must look at the FIR.
+    for r in rows:
+        if r.life_if:
+            a.status = Status.NEEDS_REVIEW
+            a.reasons.append(f"{r.key}: life imprisonment becomes available {r.life_if}; check the FIR/charge-sheet. {r.notes}".strip())
+            return a
+
+    # 4. Sections with no stated ceiling, or that defer to a principal offence.
+    for r in rows:
+        if r.max_years is None:
+            a.status = Status.NEEDS_REVIEW
+            a.reasons.append(f"{r.key}: no fixed maximum in the table ({r.notes}); resolve against the principal offence or the statute text.")
+            return a
+
+    # 5. s.479(2): multiple cases pending -> not to be released under (1). Flagged, not silently applied, because
+    #    the bar is read narrowly by several High Courts; the third proviso still applies regardless.
+    controlling = max(rows, key=lambda r: r.max_years)
+    a.controlling = controlling
+    a.max_term_years = controlling.max_years
+
+    if controlling.max_years == 0:
+        a.status = Status.NEEDS_REVIEW
+        a.reasons.append(f"{controlling.key}: punishable with fine only / no imprisonment term; continued detention needs review on other grounds.")
+        return a
+
+    a.fraction = 1 / 3 if p.first_time_offender else 1 / 2
+    a.release_mode = "bond" if p.first_time_offender else "bail"
+
+    threshold_date = _add_years(p.custody_start, controlling.max_years * a.fraction)
+    max_term_end = _add_years(p.custody_start, controlling.max_years)
+    delay = timedelta(days=max(0, p.delay_attributable_days))
+    a.eligible_on = threshold_date + delay
+    a.max_term_end = max_term_end + delay
+    a.threshold_days = (a.eligible_on - p.custody_start).days
+    a.days_served = (as_of - p.custody_start).days - max(0, p.delay_attributable_days)
+
+    # 6. Third proviso: never beyond the maximum term - absolute, applies even with multiple cases (s.479(2) is
+    #    "subject to the third proviso").
+    if as_of >= a.max_term_end:
+        a.status = Status.MUST_RELEASE_MAX_TERM
+        a.reasons.append(f"detained since {p.custody_start.isoformat()}: {a.days_served} days served, which is the full maximum term of {controlling.max_years:g} years for {controlling.key}; third proviso to s.479(1) - no discretion to continue detention.")
+        return a
+
+    if p.multiple_cases_pending:
+        a.status = Status.EXCLUDED_MULTIPLE_CASES
+        a.reasons.append("s.479(2): investigation, inquiry or trial in more than one case is pending; not to be released under s.479(1). The third proviso (maximum-term cap) still applies. Verify the other case(s) are live and not disposed.")
+        return a
+
+    if as_of >= a.eligible_on:
+        a.status = Status.ELIGIBLE
+        a.reasons.append(
+            f"{controlling.key} ({controlling.title or 'untitled'}) carries a maximum of {controlling.max_years:g} years; "
+            f"{'first-time offender, one-third' if p.first_time_offender else 'one-half'} = eligible from {a.eligible_on.isoformat()}; "
+            f"detained since {p.custody_start.isoformat()} ({a.days_served} days served). Release on {a.release_mode} under s.479(1)."
+        )
+    else:
+        a.status = Status.NOT_YET
+        a.reasons.append(f"threshold for {controlling.key} ({controlling.max_years:g} years x {'1/3' if p.first_time_offender else '1/2'}) is reached on {a.eligible_on.isoformat()}; {(a.eligible_on - as_of).days} days to go.")
+
+    if a.unverified:
+        a.reasons.append(f"law-table rows not yet verified against India Code: {', '.join(a.unverified)}. A reviewer must confirm the maximum term before filing.")
+    return a
+
+
+def assess_roster(rows: list[dict], as_of: Optional[date] = None) -> list[Assessment]:
+    """rows: dicts with keys identifier, charges (list of 'ACT s.SEC' or 'ACT/SEC'), custody_start (ISO),
+    first_time_offender (bool), multiple_cases_pending (bool), delay_attributable_days (int)."""
+    out = []
+    for r in rows:
+        charges = []
+        for c in r.get("charges", []):
+            if isinstance(c, dict):
+                charges.append(Charge(c["act"], str(c["section"])))
+            else:
+                act, sec = _split_charge(str(c))
+                charges.append(Charge(act, sec))
+        p = Prisoner(
+            charges=charges,
+            custody_start=date.fromisoformat(str(r["custody_start"])[:10]),
+            first_time_offender=bool(r.get("first_time_offender", False)),
+            multiple_cases_pending=bool(r.get("multiple_cases_pending", False)),
+            delay_attributable_days=int(r.get("delay_attributable_days", 0) or 0),
+            identifier=str(r.get("identifier", "")),
+        )
+        out.append(assess(p, as_of))
+    return out
+
+
+def _split_charge(s: str) -> tuple[str, str]:
+    s = s.strip()
+    if "/" in s and not s.upper().startswith(("NDPS", "ARMS", "POCSO", "MPA", "MCOCA", "UAPA", "PMLA", "IT/", "SCST", "DPA", "ITPA", "ECA", "PCA", "MV", "ELEC", "WLPA", "EXPL", "GAMB")):
+        act, sec = s.split("/", 1)
+        return act.strip(), sec.strip()
+    for sep in (" s.", " s ", " Sec.", " Section ", " sec. ", " sec "):
+        if sep in s:
+            act, sec = s.split(sep, 1)
+            return act.strip(), sec.strip()
+    if "/" in s:
+        act, sec = s.split("/", 1)
+        return act.strip(), sec.strip()
+    parts = s.split()
+    if len(parts) >= 2:
+        return parts[0], " ".join(parts[1:])
+    raise ValueError(f"cannot parse charge '{s}'; write it as 'BNS 303(2)' or 'NDPS/20(small)'")

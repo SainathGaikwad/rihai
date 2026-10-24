@@ -1,0 +1,23 @@
+[project]
+name = "rihai"
+version = "0.1.0"
+description = "Release eligibility of undertrial prisoners under Section 479 BNSS, 2023. The code decides; the model narrates."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Sainath Gaikwad" }, { name = "Sharvari Otari" }]
+dependencies = ["python-dateutil>=2.9", "pandas>=2.2", "streamlit>=1.38"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+agent = ["claude-agent-sdk"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["rihai*"]

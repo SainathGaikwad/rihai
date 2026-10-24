@@ -1,0 +1,6 @@
+python-dateutil>=2.9
+pandas>=2.2
+streamlit>=1.38
+pytest>=8
+# optional: the Claude Agent SDK used by AgentFoundry's Claude scaffold; rihai.agent.tools works without it
+# claude-agent-sdk

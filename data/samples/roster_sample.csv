@@ -1,0 +1,26 @@
+identifier,charges,custody_start,first_time_offender,multiple_cases_pending,delay_attributable_days
+UTP-0417,BNS 303(2),2025-01-10,true,false,0
+UTP-0418,IPC/379;IPC/411,2023-11-02,false,false,0
+UTP-0419,BNS 318(4),2024-09-15,true,false,0
+UTP-0420,IPC/420;IPC/468,2022-08-20,false,false,45
+UTP-0421,NDPS/20(small),2026-05-03,true,false,0
+UTP-0422,NDPS/20(commercial),2019-12-12,true,false,0
+UTP-0423,BNS 103(1),2024-10-01,true,false,0
+UTP-0424,IPC/326,2021-03-30,false,false,0
+UTP-0425,BNS 118(1),2025-02-14,true,false,0
+UTP-0426,BNS 118,2025-02-14,true,false,0
+UTP-0427,IPC/307,2022-01-05,true,false,0
+UTP-0428,BNS 191(3),2026-01-20,false,false,0
+UTP-0429,MPA/65,2025-11-11,true,false,0
+UTP-0430,IPC/498A;IPC/323,2024-06-18,true,false,0
+UTP-0431,BNS 303(2),2024-02-01,false,true,0
+UTP-0432,BNS 303(2),2023-06-01,false,true,0
+UTP-0433,ARMS/25(1B),2025-04-09,true,false,0
+UTP-0434,IPC/457;IPC/380,2021-07-07,false,false,0
+UTP-0435,BNS 351(3),2026-03-01,true,false,0
+UTP-0436,IPC/999,2024-01-01,true,false,0
+UTP-0437,POCSO/8,2024-05-21,true,false,0
+UTP-0438,BNS 189(2),2026-08-15,true,false,0
+UTP-0439,IPC/392,2023-03-03,true,false,0
+UTP-0440,BNS 316(2),2024-11-30,false,false,0
+UTP-0441,IT/66D;BNS 318(4),2025-06-06,true,false,0
