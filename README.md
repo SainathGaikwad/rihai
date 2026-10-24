@@ -28,8 +28,8 @@ nobody runs it continuously across 1,300 prisons.
    refused. Ambiguous ones (a bare "Section 118" that could be 3 years or life; attempt to murder, where life depends
    on whether hurt was caused) come back as `NEEDS_REVIEW` with the reason.
 2. **Drafts, from the assessment only.** For each eligible prisoner it drafts the Section 479 application and the
-   DLSA/UTRC memo. In template mode no model is involved, so the draft cannot contain a figure the engine did not
-   compute. A model (Muse Spark, Nemotron, Claude) may rewrite the prose or translate it to Hindi and Marathi.
+   DLSA/UTRC memo, in English, Hindi or Marathi. In template mode no model is involved, so the draft cannot contain
+   a figure the engine did not compute. A model (Muse Spark, Nemotron, Claude) may rewrite the prose.
 3. **A citation gate.** Every statutory reference in any draft, model-written or not, must resolve to the law
    table or to the short list of procedural provisions a s.479 application may cite. One unknown section blocks the
    draft. Same idea as SEEN's claim checker, pointed at sections instead of numbers.
@@ -80,8 +80,8 @@ Legal Aid Defence Counsel. Outreach drafts are in [`docs/outreach/`](docs/outrea
 
 ## What is not done yet
 
-- Hindi and Marathi application templates (English is done; references stay in English).
-- Verification of the law table against India Code row by row (the verification script is `scripts/verify.py`, pending).
+- Law-clinic review of the Hindi and Marathi legal terms (templates are done; each draft carries a review line until then).
+- Verification of the law table against India Code row by row: `python scripts/verify.py` records each checked row.
 - IPC s.392 is encoded at its highway-at-night maximum (14 years) pending a split row for the plain offence (10 years).
 - OCR of scanned jail registers (Annexure A/B formats) into the roster CSV.
 

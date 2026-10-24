@@ -61,6 +61,9 @@ with tab1:
         case = st.text_input("Case No.", "")
         jail = st.text_input("Jail", "Yerawada Central Prison, Pune")
         court = st.text_input("Court", "the Court of the Judicial Magistrate First Class, Pune")
+        lang = st.radio("Application language", ["en", "hi", "mr"], horizontal=True,
+                        format_func=lambda k: {"en": "English", "hi": "हिंदी", "mr": "मराठी"}[k],
+                        help="Statutory references stay in English in every language; the citation gate runs on all three.")
 
     if st.button("Assess", type="primary"):
         charges = [Charge(*_split(c)) for c in charges_txt.split(",") if c.strip()]
@@ -83,7 +86,7 @@ with tab1:
             part = Particulars(applicant_name=name or "________", applicant_age=age or "__", parent_name=parent or "________",
                                police_station=ps or "________", fir_no=fir or "____ of 20__", case_no=case or "____ of 20__",
                                jail=jail, court=court)
-            d = draft(a, part)
+            d = draft(a, part, lang=lang)
             st.markdown("#### Citation gate")
             g = d["gate"]
             (st.success if not g.blocked else st.error)(g.summary())
@@ -91,7 +94,7 @@ with tab1:
             st.code(d["memo"], language=None)
             st.markdown("#### Application (review before filing)")
             st.text_area("application", d["application"], height=600, label_visibility="collapsed")
-            st.download_button("Download application (.txt)", d["application"], file_name=f"s479_application_{ident}.txt")
+            st.download_button("Download application (.txt)", d["application"], file_name=f"s479_application_{ident}_{lang}.txt")
         else:
             part = Particulars(jail=jail, court=court)
             st.markdown("#### DLSA / UTRC memo")

@@ -207,12 +207,17 @@ def dlsa_memo_en(a: Assessment, p: Particulars) -> str:
 
 
 def draft(a: Assessment, p: Particulars | None = None, lang: str = "en") -> dict:
-    """Returns {'application': str|None, 'memo': str, 'gate': GateResult|None}. The gate runs on the application."""
+    """Returns {'application': str|None, 'memo': str, 'gate': GateResult|None}. lang: 'en' | 'hi' | 'mr'. The gate runs
+    on the application in every language (statutory references stay in English)."""
     p = p or Particulars()
-    if lang != "en":
-        raise NotImplementedError("Hindi and Marathi templates land on Day 2; a law-clinic reviewer checks the legal terms; statutory references stay in English.")
     memo = dlsa_memo_en(a, p)
     if not a.eligible:
         return {"application": None, "memo": memo, "gate": None}
-    app = application_en(a, p)
+    if lang == "en":
+        app = application_en(a, p)
+    elif lang in ("hi", "mr"):
+        from .draft_i18n import application_hi, application_mr   # local import: keeps draft.py importable alone
+        app = (application_hi if lang == "hi" else application_mr)(a, p)
+    else:
+        raise ValueError(f"lang must be 'en', 'hi' or 'mr', not {lang!r}")
     return {"application": app, "memo": memo, "gate": gate_check(app)}

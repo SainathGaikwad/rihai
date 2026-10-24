@@ -50,18 +50,20 @@ def assess_roster_tool(roster_json: str, as_of: Optional[str] = None) -> str:
 
 def draft_application(charges: list[str], custody_start: str, first_time_offender: bool,
                       multiple_cases_pending: bool = False, delay_attributable_days: int = 0, identifier: str = "",
-                      particulars_json: str = "{}", as_of: Optional[str] = None) -> str:
+                      particulars_json: str = "{}", as_of: Optional[str] = None, lang: str = "en") -> str:
     """Draft the Section 479 application and the DLSA memo for one prisoner; runs the citation gate on the draft.
-    Returns JSON {status, assessment, application, memo, gate}. application is null unless the prisoner is eligible."""
+    lang: 'en' | 'hi' (Hindi) | 'mr' (Marathi). Returns JSON {status, assessment, application, memo, gate}.
+    application is null unless the prisoner is eligible."""
     rows = [{"identifier": identifier, "charges": charges, "custody_start": custody_start,
              "first_time_offender": first_time_offender, "multiple_cases_pending": multiple_cases_pending,
              "delay_attributable_days": delay_attributable_days}]
     a = assess_roster(rows, as_of=date.fromisoformat(as_of) if as_of else None)[0]
     p = Particulars(**json.loads(particulars_json or "{}"))
-    d = draft(a, p)
+    d = draft(a, p, lang=lang)
     g = d["gate"]
     return json.dumps({
         "status": a.status.value,
+        "lang": lang,
         "assessment": a.to_dict(),
         "application": d["application"],
         "memo": d["memo"],
@@ -92,7 +94,7 @@ _SPECS = {
     "assess_roster_tool": ("Assess a whole prison roster under Section 479 BNSS.", {"roster_json": str, "as_of": str}),
     "draft_application": ("Draft the Section 479 application and DLSA memo for an eligible prisoner; runs the citation gate.",
                           {"charges": list, "custody_start": str, "first_time_offender": bool, "multiple_cases_pending": bool,
-                           "delay_attributable_days": int, "identifier": str, "particulars_json": str, "as_of": str}),
+                           "delay_attributable_days": int, "identifier": str, "particulars_json": str, "as_of": str, "lang": str}),
     "check_citations": ("Run the citation gate over any text.", {"text": str}),
     "law_table_stats": ("Size and verification status of the law table.", {}),
 }
