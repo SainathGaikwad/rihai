@@ -210,7 +210,7 @@ def draft(a: Assessment, p: Particulars | None = None, lang: str = "en") -> dict
     """Returns {'application': str|None, 'memo': str, 'gate': GateResult|None}. The gate runs on the application."""
     p = p or Particulars()
     if lang != "en":
-        raise NotImplementedError("Hindi and Marathi templates land on Day 2 (Sharvari); statutory references stay in English.")
+        raise NotImplementedError("Hindi and Marathi templates land on Day 2; a law-clinic reviewer checks the legal terms; statutory references stay in English.")
     memo = dlsa_memo_en(a, p)
     if not a.eligible:
         return {"application": None, "memo": memo, "gate": None}

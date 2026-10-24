@@ -1,9 +1,9 @@
 **To:** Prayas, Field Action Project of the Tata Institute of Social Sciences (Pune unit)
-**Subject:** A tool to find Section 479 BNSS-eligible undertrials in Yerawada, built by two engineers in Pune
+**Subject:** A tool to find Section 479 BNSS-eligible undertrials in Yerawada, built by a software engineer in Pune
 
 Dear Prayas team,
 
-I am Sainath Gaikwad, a software engineer in Pune. With a colleague I have built a small open-source tool, Rihai,
+I am Sainath Gaikwad, a software engineer in Pune. I have built a small open-source tool, Rihai,
 that takes a list of undertrial prisoners (charge sections, date of custody, prior convictions) and computes who is
 eligible for release under Section 479 of the BNSS, then drafts the application and the DLSA note. The eligibility
 arithmetic is deterministic code, not an AI guess; the AI part only writes prose, and every section it cites is

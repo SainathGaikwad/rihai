@@ -4,7 +4,7 @@
 The code decides; the model narrates.
 
 Bharat Agentic-AI Hackathon 2026 (Code for India), impact area: Timely Justice / Legal Backlog.
-Built in AgentFoundry. MIT licence. Team: Sainath Gaikwad, Sharvari Otari (Pune).
+Built in AgentFoundry. MIT licence. Built by Sainath Gaikwad (Pune); field pilot with Pushkar.
 
 ## The problem
 

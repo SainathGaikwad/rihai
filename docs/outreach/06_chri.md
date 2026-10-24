@@ -3,7 +3,7 @@
 
 Dear CHRI team,
 
-I am Sainath Gaikwad, a software engineer in Pune. We have built Rihai, an open-source tool that takes a prison
+I am Sainath Gaikwad, a software engineer in Pune. I have built Rihai, an open-source tool that takes a prison
 roster and computes Section 479 BNSS eligibility deterministically (the half and one-third thresholds, the
 life/death exclusion, the multiple-cases bar in sub-section (2), the maximum-term proviso, the delay explanation),
 then drafts the application for counsel. The AI writes prose only, and every statutory citation is checked against

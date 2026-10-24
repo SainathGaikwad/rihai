@@ -3,7 +3,7 @@
 
 Dear Sir/Madam,
 
-I am Sainath Gaikwad, a software engineer in Pune. My colleague and I have built Rihai, an open-source tool that
+I am Sainath Gaikwad, a software engineer in Pune. I have built Rihai, an open-source tool that
 computes an undertrial prisoner's eligibility for release under Section 479 of the BNSS from the charge sections and
 the date of custody, and drafts the application for counsel to review. The computation is deterministic code; the
 AI only writes prose, and every section it cites is checked against a law table before it is shown.

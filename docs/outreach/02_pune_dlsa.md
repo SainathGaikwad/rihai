@@ -4,8 +4,8 @@
 Respected Sir/Madam,
 
 I am Sainath Gaikwad, a software engineer in Pune. In response to the Hon'ble Supreme Court's directions in In Re:
-Inhuman Conditions in 1382 Prisons (orders of 23.08.2024 and 22.10.2024) on Section 479 of the BNSS, my colleague
-and I have built an open-source tool that takes a prison roster in the UTRC Annexure format (charge sections, date
+Inhuman Conditions in 1382 Prisons (orders of 23.08.2024 and 22.10.2024) on Section 479 of the BNSS, I
+have built an open-source tool that takes a prison roster in the UTRC Annexure format (charge sections, date
 of custody, prior convictions) and produces, for every undertrial, the Section 479 eligibility status, the date on
 which the one-third or one-half threshold was crossed, and a draft application under Section 479(1) for the Legal
 Aid Defence Counsel to review and file.

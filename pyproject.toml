@@ -5,7 +5,7 @@ description = "Release eligibility of undertrial prisoners under Section 479 BNS
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
-authors = [{ name = "Sainath Gaikwad" }, { name = "Sharvari Otari" }]
+authors = [{ name = "Sainath Gaikwad" }]
 dependencies = ["python-dateutil>=2.9", "pandas>=2.2", "streamlit>=1.38"]
 
 [project.optional-dependencies]
