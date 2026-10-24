@@ -36,7 +36,7 @@ find those people.
 ## What you built
 
 Rihai takes a prison roster (charge sections, custody start date, prior convictions, pending cases) and computes
-Section 479 eligibility deterministically against a law table of maximum sentences (755 rows: BNS 2023, IPC 1860,
+Section 479 eligibility deterministically against a law table of maximum sentences (757 rows: BNS 2023, IPC 1860,
 17 special Acts). Every rule in the engine maps to a line of the section; unknown sections are refused, ambiguous
 ones come back as "needs review" with the reason, life and death offences are excluded as the section requires.
 For every eligible prisoner it drafts the application to the court and the memo for the DLSA/Undertrial Review
@@ -51,7 +51,7 @@ model's final answer and sends it back if a section does not resolve. The model 
 date or a maximum term or invent a section. A second, optional prose layer lets any OpenAI-compatible model
 rewrite a draft, and its text is used only if the gate passes and every date, day count and section is unchanged.
 With no model configured, Rihai still works end to end. Rihai files nothing and decides nothing: legal-aid counsel
-reviews, the court decides. 53 automated tests. MIT licence. No prisoner name anywhere in the code or data.
+reviews, the court decides. 54 automated tests. MIT licence. No prisoner name anywhere in the code or data.
 
 Impact area on the hackathon site: Timely Justice / Legal Backlog.
 
@@ -97,7 +97,7 @@ Write only what happened. A line with no real number is deleted, not estimated.
 - Applications drafted: [n]. Filed through the Legal Aid Defence Counsel: [n]. Orders received: [n], people
   released: [n]
 - Time per case, clinic's own estimate before and measured with Rihai: [minutes]
-- Law-table rows verified against India Code by law students: [n] of 755
+- Law-table rows verified against India Code by law students: [n] of 757
 - Letter of intent / MoU / written feedback: [who, date, attached to the issue]
 
 ## Track / category

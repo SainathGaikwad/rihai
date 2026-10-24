@@ -23,6 +23,7 @@ from rihai.agent import llm  # noqa: E402
 from rihai.agent.draft import Particulars, draft  # noqa: E402
 from rihai.eligibility import Charge, Prisoner, Status, assess, assess_roster  # noqa: E402
 from rihai.eligibility.s479 import _split_charge  # noqa: E402
+from rihai.gate import check as gate_check  # noqa: E402
 from rihai.law import all_rows, stats  # noqa: E402
 
 st.set_page_config(page_title="Rihai - Section 479 BNSS", page_icon="⚖️", layout="wide")
@@ -52,7 +53,7 @@ STATUS_HELP = {
     "UNKNOWN_SECTION": "A charge is not in the law table. Nothing is guessed.",
 }
 
-tab1, tab2, tab3 = st.tabs(["One prisoner", "Roster (CSV)", "Law table"])
+tab1, tab2, tab3, tab4 = st.tabs(["One prisoner", "Roster (CSV)", "Law table", "Citation gate"])
 
 with tab1:
     c1, c2 = st.columns([1, 1])
@@ -110,8 +111,7 @@ with tab1:
                     pol = llm.polish(application, a, lang=lang)
                 application = pol.text
                 (st.info if pol.polished else st.warning)(pol.reason + (f" (missing: {', '.join(pol.missing_anchors)})" if pol.missing_anchors else ""))
-                from rihai.gate import check as _gate_check
-                g = _gate_check(application)
+                g = gate_check(application)
             st.markdown("#### Citation gate")
             (st.success if not g.blocked else st.error)(g.summary())
             with st.expander("Citations read"):
@@ -178,3 +178,14 @@ with tab3:
     st.dataframe(tdf[["act", "section", "title", "max_years", "min_years", "life", "death", "life_if", "umbrella", "verified", "notes"]],
                  width='stretch', hide_index=True, height=600)
 
+with tab4:
+    st.markdown("Paste any draft, model-written or not, in English, Hindi or Marathi. Every statutory reference in it must resolve "
+                "to the law table or to the few procedural provisions a s.479 application may cite. One unknown section blocks the draft.")
+    sample = ("The applicant is charged under Section 303(2) of the Bharatiya Nyaya Sanhita, 2023 and is entitled to release on bond "
+              "under the first proviso to Section 479(1) BNSS. Reliance is also placed on Section 999 of the Sanhita and on Article 21 "
+              "of the Constitution.")
+    txt = st.text_area("Draft text", sample, height=160)
+    if st.button("Check citations"):
+        g = gate_check(txt)
+        (st.success if not g.blocked else st.error)(g.summary())
+        st.table([{"act": c.act, "section": c.section, "as written": c.text, "ok": c.ok, "note": c.reason} for c in g.citations])

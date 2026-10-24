@@ -115,6 +115,24 @@ class Assessment:
         }
 
 
+def _variants_with_maxima(r) -> str:
+    """'303(2) 3y, 303(3) 7y' so a reviewer sees the thresholds at stake without a second lookup."""
+    out = []
+    for v in r.variants:
+        try:
+            row = lookup(r.act, v)
+        except UnknownSection:
+            out.append(v)
+            continue
+        if row.death or row.life:
+            out.append(f"{v} life/death")
+        elif row.max_years is None:
+            out.append(f"{v} no ceiling")
+        else:
+            out.append(f"{v} {row.max_years:g}y")
+    return ", ".join(out)
+
+
 def _add_years(d: date, years: float) -> date:
     """Calendar arithmetic the way courts count sentences: whole years then months, not 365.25-day floats."""
     whole = int(years)
@@ -144,7 +162,7 @@ def assess(p: Prisoner, as_of: Optional[date] = None) -> Assessment:
             return a
         if r.umbrella:
             a.status = Status.NEEDS_REVIEW
-            a.reasons.append(f"{r.key}: specify the sub-section; variants {', '.join(r.variants)}. {r.notes}".strip())
+            a.reasons.append(f"{r.key}: specify the sub-section; variants {_variants_with_maxima(r)}. {r.notes}".strip())
             return a
         rows.append(r)
         if not r.verified:

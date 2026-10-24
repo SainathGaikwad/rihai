@@ -41,7 +41,7 @@ Nothing in Rihai files anything, sends anything or decides anything. Legal-aid c
 ## How it fits together
 
 ```
- roster CSV / one case                      law table (755 rows, verified flags)
+ roster CSV / one case                      law table (757 rows, verified flags)
         |                                              |
         v                                              v
  rihai/eligibility/s479.py  <----- lookup -----  rihai/law/table.py
@@ -66,7 +66,7 @@ The model never sees a tool that can compute a date or a maximum term. It can lo
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                              # 53 tests: rule, gate, three languages, model contract, guardrails, app
+python -m pytest -q                              # 54 tests: rule, gate, three languages, model contract, guardrails, app
 streamlit run rihai/app/streamlit_app.py         # one prisoner / roster CSV / law table
 python -m rihai.agent.run --charges "BNS 303(2)" --custody 2025-01-10 --first-time --lang mr
 python -m rihai.agent.run --roster data/samples/roster_sample.csv --out out/   # results.csv, memos, applications
@@ -85,7 +85,7 @@ days. Rihai writes the application in under a second; the citation gate passes i
 | | rows | source |
 |---|---|---|
 | BNS 2023 | 468 | sections and titles from the IPC/BNS concordance (GSMS-B, CC-BY-4.0); maximum terms encoded from the Act |
-| IPC 1860 | 181 | the sections that fill prison rosters; most undertrials today were charged before July 2024 |
+| IPC 1860 | 183 | the sections that fill prison rosters; most undertrials today were charged before July 2024 |
 | Special Acts | 106 | NDPS (by quantity class), Arms, POCSO, Maharashtra Prohibition, MCOCA, UAPA, PMLA, IT, SC/ST, Dowry, ITPA, PC Act, MV, Electricity, Wildlife, Explosives, Gambling |
 
 Every row carries `verified` (false until a reviewer checks it against the official text on India Code) and the
@@ -122,7 +122,6 @@ Legal Aid Defence Counsel. Outreach drafts are in [`docs/outreach/`](docs/outrea
 
 - Law-clinic review of the Hindi and Marathi legal terms (templates are done; each draft carries a review line until then).
 - Verification of the law table against India Code row by row: `python scripts/verify.py` records each checked row.
-- IPC s.392 is encoded at its highway-at-night maximum (14 years) pending a split row for the plain offence (10 years).
 - OCR of scanned jail registers (Annexure A/B formats) into the roster CSV.
 
 ## Licence and attribution

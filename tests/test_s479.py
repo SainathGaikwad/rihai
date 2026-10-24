@@ -165,3 +165,14 @@ def test_unverified_rows_are_reported():
     a = assess(P(("BNS", "303(2)"), start=D(2025, 1, 15), first=True), as_of=D(2026, 6, 1))
     assert "BNS/303(2)" in a.unverified
     assert any("not yet verified" in r for r in a.reasons)
+
+
+def test_ipc_392_bare_is_reviewed_with_both_limbs_shown():
+    """Charge-sheets write a bare 392; plain robbery is 10 years, highway-at-night 14. The reviewer must pick."""
+    from datetime import date as _d
+    a = assess(Prisoner(charges=[Charge("IPC", "392")], custody_start=_d(2021, 6, 1), first_time_offender=False), as_of=_d(2026, 10, 24))
+    assert a.status == Status.NEEDS_REVIEW and "392(plain) 10y" in a.reasons[0] and "392(highway) 14y" in a.reasons[0]
+    plain = assess(Prisoner(charges=[Charge("IPC", "392(plain)")], custody_start=_d(2021, 6, 1), first_time_offender=False), as_of=_d(2026, 10, 24))
+    assert plain.status == Status.ELIGIBLE and plain.eligible_on == _d(2026, 6, 1)
+    highway = assess(Prisoner(charges=[Charge("IPC", "392(highway)")], custody_start=_d(2021, 6, 1), first_time_offender=False), as_of=_d(2026, 10, 24))
+    assert highway.status == Status.NOT_YET and highway.eligible_on == _d(2028, 6, 1)
