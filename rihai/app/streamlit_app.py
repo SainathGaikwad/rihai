@@ -121,6 +121,7 @@ with tab1:
             st.markdown("#### Application (review before filing)")
             st.text_area("application", application, height=600, label_visibility="collapsed")
             st.download_button("Download application (.txt)", application, file_name=f"s479_application_{ident}_{lang}.txt")
+            st.download_button("Download DLSA memo (.txt)", d["memo"], file_name=f"dlsa_memo_{ident}.txt")
         else:
             part = Particulars(jail=jail, court=court)
             st.markdown("#### DLSA / UTRC memo")

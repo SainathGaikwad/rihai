@@ -71,7 +71,17 @@ def main() -> int:
     ap.add_argument("--url", required=False, help="India Code (or other official) URL of the section text")
     ap.add_argument("--note", default="")
     ap.add_argument("--status", action="store_true", help="print verification coverage and exit")
+    ap.add_argument("--list", action="store_true", help="list priority sections from the law table and exit")
     args = ap.parse_args()
+
+    if args.list:
+        for a, s in PRIORITY:
+            try:
+                r = lookup(a, s)
+                print(f"{r.act} {r.section} {r.title} {r.max_years} {r.life} {r.death}")
+            except UnknownSection:
+                print(f"{a} {s} UNKNOWN")
+        return 0
 
     if args.status or not args.act:
         status()

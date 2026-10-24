@@ -1,0 +1,846 @@
+{
+  "savedAt": "2026-10-24T18:39:39.933Z",
+  "messages": [
+    {
+      "role": "user",
+      "content": "In rihai/app/streamlit_app.py, in the \"One prisoner\" tab, right after the existing st.download_button for \"Download application (.txt)\", add a second st.download_button labelled \"Download DLSA memo (.txt)\" that downloads d[\"memo\"] with file_name f\"dlsa_memo_{ident}.txt\". Change nothing else. Then run: python -m pytest -q tests/test_app.py  and make sure it passes."
+    },
+    {
+      "role": "assistant",
+      "content": "I'll help you add the new download button and run the tests. Let me start by examining the current file.",
+      "toolUses": [
+        {
+          "id": "toolu_014PJjxiN6cAtMb9crEKCZMf",
+          "name": "read_file",
+          "input": {
+            "path": "rihai/app/streamlit_app.py"
+          },
+          "status": "done",
+          "preview": "```\n// rihai/app/streamlit_app.py\n\"\"\"Rihai - Streamlit front end.  streamlit run rihai/app/streamlit_app.py\n\nThree tabs:…"
+        }
+      ],
+      "routingInfo": {
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "DEFAULT",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014PJjxiN6cAtMb9crEKCZMf",
+          "content": "```\n// rihai/app/streamlit_app.py\n\"\"\"Rihai - Streamlit front end.  streamlit run rihai/app/streamlit_app.py\n\nThree tabs: one prisoner, a roster CSV, the law table. No names are stored; the roster identifier is whatever the\njail or clinic uses. Everything shown is computed by rihai.eligibility; the application text is the template drafter\nwith the citation gate run on it.\n\"\"\"\nfrom __future__ import annotations\n\nimport io\nimport json\nimport sys\nfrom datetime import date\nfrom pathlib import Path\n\nimport pandas as pd\nimport streamlit as st\n\nROOT = Path(__file__).resolve().parents[2]\nif str(ROOT) not in sys.path:\n    sys.path.insert(0, str(ROOT))\n\nfrom rihai.agent import llm  # noqa: E402\nfrom rihai.agent.draft import Particulars, draft  # noqa: E402\nfrom rihai.eligibility import Charge, Prisoner, Status, assess, assess_roster  # noqa: E402\nfrom rihai.eligibility.s479 import _split_charge  # noqa: E402\nfrom rihai.gate import check as gate_check  # noqa: E402\nfrom rihai.law import all_rows, stats  # noqa: E402\n\nst.set_page_config(page_title=\"Rihai - Section 479 BNSS\", page_icon=\"⚖️\", layout=\"wide\")\n\nst.title(\"Rihai\")\nst.caption(\"Release eligibility of undertrial prisoners under Section 479 of the Bharatiya Nagarik Suraksha Sanhita, 2023. \"\n           \"The code decides; the model narrates. Drafts are for review by legal-aid counsel before filing.\")\n\nwith st.sidebar:\n    st.markdown(\"**How it works**\")\n    st.markdown(\"1. The rule in s.479 runs as code over the roster: charges, custody date, prior convictions.\\n\"\n                \"2. Eligible cases get a template application and a DLSA memo in English, Hindi or Marathi.\\n\"\n                \"3. A citation gate checks every section in every draft against the law table.\\n\"\n                \"4. A model may rewrite the prose; its version is used only if the gate passes and every date, \"\n                \"day count and section is unchanged.\")\n    st.markdown(f\"Model for prose: **{'configured (' + str(llm.config()['model']) + ')' if llm.available() else 'none; template mode'}**\")\n    st.caption(\"Keys live in Streamlit secrets or environment variables, never in the repository.\")\n    st.markdown(\"[Source and law table on GitHub](https://github.com/SainathGaikwad/rihai)\")\n\nSTATUS_HELP = {\n    \"ELIGIBLE\": \"Threshold under s.479(1) met: release on bond (first-time) or bail.\",\n    \"MUST_RELEASE_MAX_TERM\": \"Detained for the full maximum term: third proviso to s.479(1), release is mandatory.\",\n    \"NOT_YET\": \"Threshold not yet reached; the date it will be is shown.\",\n    \"EXCLUDED_LIFE_OR_DEATH\": \"An offence charged carries death or life imprisonment; s.479 does not apply.\",\n    \"EXCLUDED_MULTIPLE_CASES\": \"s.479(2): other cases pending. Verify; the maximum-term cap still applies.\",\n    \"NEEDS_REVIEW\": \"The law table cannot settle it without a human (sub-section, conditional life, no stated ceiling).\",\n    \"UNKNOWN_SECTION\": \"A charge is not in the law table. Nothing is guessed.\",\n}\n\ntab1, tab2, tab3, tab4 = st.tabs([\"One prisoner\", \"Roster (CSV)\", \"Law table\", \"Citation gate\"])\n\nwith tab1:\n    c1, c2 = st.columns([1, 1])\n    with c1:\n        charges_txt = st.text_input(\"Charges (comma-separated)\", \"BNS 303(2)\", help=\"e.g. BNS 303(2), IPC/379, NDPS/20(small)\")\n        custody = st.date_input(\"In custody since\", date(2025, 1, 10), min_value=date(2000, 1, 1), max_value=date.today())\n        first = st.checkbox(\"First-time offender (never convicted of any offence)\", True)\n        multi = st.checkbox(\"Another case / investigation pending (s.479(2))\", False)\n        delay = st.number_input(\"Days of delay attributable to the accused (Explanation)\", 0, 5000, 0)\n        ident = st.text_input(\"Roster identifier (no names)\", \"UTP-0417\")\n        as_of = st.date_input(\"Assess as on\", date.today())\n    with c2:\n        st.markdown(\"**Particulars for the draft** (optional; stay out of logs)\")\n        name = st.text_input(\"Applicant name\", \"\")\n        age = st.text_input(\"Age\", \"\")\n        parent = st.text_input(\"Father's / mother's name\", \"\")\n        ps = st.text_input(\"Police station\", \"\")\n        fir = st.text_input(\"C.R. / FIR No.\", \"\")\n        case = st.text_input(\"Case No.\", \"\")\n        jail = st.text_input(\"Jail\", \"Yerawada Central Prison, Pune\")\n        court = st.text_input(\"Court\", \"the Court of the Judicial Magistrate First Class, Pune\")\n        lang = st.radio(\"Application language\", [\"en\", \"hi\", \"mr\"], horizontal=True,\n                        format_func=lambda k: {\"en\": \"English\", \"hi\": \"हिंदी\", \"mr\": \"मराठी\"}[k],\n                        help=\"Statutory references stay in English in every language; the citation gate runs on all three.\")\n        use_model = st.checkbox(\"Let the model rewrite the prose (gated)\", value=False, disabled=not llm.available(),\n                                help=\"Only offered when a model is configured. Its text replaces the template only if the \"\n                                     \"citation gate passes and every date, day count and section survives unchanged.\")\n\n    if st.button(\"Assess\", type=\"primary\"):\n        charges = [Charge(*_split_charge(c)) for c in charges_txt.split(\",\") if c.strip()]\n        p = Prisoner(charges=charges, custody_start=custody, first_time_offender=first, multiple_cases_pending=multi,\n                     delay_attributable_days=int(delay), identifier=ident)\n        a = assess(p, as_of=as_of)\n        colour = {\"ELIGIBLE\": \"green\", \"MUST_RELEASE_MAX_TERM\": \"green\", \"NOT_YET\": \"orange\"}.get(a.status.value, \"red\")\n        st.markdown(f\"### :{colour}[{a.status.value}]\")\n        st.caption(STATUS_HELP[a.status.value])\n        m1, m2, m3, m4 = st.columns(4)\n        m1.metric(\"Controlling section\", a.controlling.key if a.controlling else \"-\")\n        m2.metric(\"Maximum term\", f\"{a.max_term_years:g} y\" if a.max_term_years is not None else \"-\")\n        m3.metric(\"Days served\", a.days_served if a.days_served is not None else \"-\")\n        m4.metric(\"Eligible from\", a.eligible_on.strftime(\"%d %b %Y\") if a.eligible_on else \"-\")\n        for r in a.reasons:\n            st.write(\"• \" + r)\n        if a.unverified:\n            st.warning(\"Law-table rows used that are not yet verified against India Code: \" + \", \".join(a.unverified))\n        if a.eligible:\n            part = Particulars(applicant_name=name or \"________\", applicant_age=age or \"__\", parent_name=parent or \"________\",\n                               police_station=ps or \"________\", fir_no=fir or \"____ of 20__\", case_no=case or \"____ of 20__\",\n                               jail=jail, court=court)\n            d = draft(a, part, lang=lang)\n            application = d[\"application\"]\n            g = d[\"gate\"]\n            if use_model:\n                with st.spinner(\"Model rewriting the prose; gate checking it\"):\n                    pol = llm.polish(application, a, lang=lang)\n                application = pol.text\n                (st.info if pol.polished else st.warning)(pol.reason + (f\" (missing: {', '.join(pol.missing_anchors)})\" if pol.missing_anchors else \"\"))\n                g = gate_check(application)\n            st.markdown(\"#### Citation gate\")\n            (st.success if not g.blocked else st.error)(g.summary())\n            with st.expander(\"Citations read\"):\n                st.table([{\"act\": c.act, \"section\": c.section, \"as written\": c.text, \"ok\": c.ok, \"note\": c.reason} for c in g.citations])\n            st.markdown(\"#### DLSA / UTRC memo\")\n            st.code(d[\"memo\"], language=None)\n            st.markdown(\"#### Application (review before filing)\")\n            st.text_area(\"application\", application, height=600, label_visibility=\"collapsed\")\n            st.download_button(\"Download application (.txt)\", application, file_name=f\"s479_application_{ident}_{lang}.txt\")\n        else:\n            part = Particulars(jail=jail, court=court)\n            st.markdown(\"#### DLSA / UTRC memo\")\n            st.code(draft(a, part)[\"memo\"], language=None)\n\nwith tab2:\n    st.markdown(\"Upload a roster CSV with columns: `identifier, charges, custody_start, first_time_offender, multiple_cases_pending, delay_attributable_days`. \"\n                \"`charges` is `;`-separated, e.g. `BNS 303(2);IPC/411`. Dates ISO. No names.\")\n    sample = ROOT / \"data\" / \"samples\" / \"roster_sample.csv\"\n    if sample.exists():\n        st.download_button(\"Download the sample roster\", sample.read_bytes(), file_name=\"roster_sample.csv\")\n    up = st.file_uploader(\"Roster CSV\", type=[\"csv\"])\n    as_of2 = st.date_input(\"Assess as on \", date.today(), key=\"asof2\")\n    if up is not None or st.button(\"Run on the sample roster\"):\n        df = pd.read_csv(up if up is not None else sample)\n        rows = []\n        for _, r in df.iterrows():\n            rows.append({\n                \"identifier\": str(r.get(\"identifier\", \"\")),\n                \"charges\": [c.strip() for c in str(r.get(\"charges\", \"\")).split(\";\") if c.strip()],\n                \"custody_start\": str(r.get(\"custody_start\", \"\")),\n                \"first_time_offender\": str(r.get(\"first_time_offender\", \"\")).strip().lower() in (\"1\", \"true\", \"yes\", \"y\"),\n                \"multiple_cases_pending\": str(r.get(\"multiple_cases_pending\", \"\")).strip().lower() in (\"1\", \"true\", \"yes\", \"y\"),\n                \"delay_attributable_days\": int(r.get(\"delay_attributable_days\", 0) or 0),\n            })\n        out = assess_roster(rows, as_of=as_of2)\n        res = pd.DataFrame([{\n            \"identifier\": a.prisoner.identifier, \"status\": a.status.value,\n            \"controlling\": a.controlling.key if a.controlling else \"\", \"max_years\": a.max_term_years,\n            \"first_time\": a.prisoner.first_time_offender, \"days_served\": a.days_served,\n            \"eligible_on\": a.eligible_on.isoformat() if a.eligible_on else \"\",\n            \"release_mode\": a.release_mode or \"\", \"reason\": a.reasons[0] if a.reasons else \"\",\n        } for a in out])\n        counts = res[\"status\"].value_counts().to_dict()\n        st.markdown(\"**Summary:** \" + \" · \".join(f\"{k} {v}\" for k, v in counts.items()))\n        st.dataframe(res, width='stretch', hide_index=True)\n        st.download_button(\"Download results (.csv)\", res.to_csv(index=False), file_name=\"rihai_results.csv\")\n        elig = [a for a in out if a.eligible]\n        if elig:\n            st.markdown(f\"**{len(elig)} prisoner(s) eligible** - memos for the DLSA list:\")\n            st.code(\"\\n\\n\".join(draft(a, Particulars())[\"memo\"] for a in elig), language=None)\n\nwith tab3:\n    s = stats()\n    st.markdown(f\"**{s['rows']} rows** · {s['verified']} verified against India Code · {s['excluded_life_or_death']} carry death/life · \"\n                f\"{s['umbrella']} umbrella sections · {s['unbounded']} with no stated ceiling\")\n    st.caption(\"Section titles and the IPC/BNS mapping come from the GSMS-B concordance (CC-BY-4.0). Maximum terms are encoded \"\n               \"from the statute text and flagged unverified until a reviewer checks them against the official text; the engine \"\n               \"refuses unknown sections and marks unverified ones.\")\n    tdf = pd.DataFrame([r.to_dict() for r in all_rows().values()])\n    q = st.text_input(\"Filter (act, section or title)\", \"\")\n    if q:\n        m = tdf.apply(lambda row: q.lower() in f\"{row['act']} {row['section']} {row['title']}\".lower(), axis=1)\n        tdf = tdf[m]\n    st.dataframe(tdf[[\"act\", \"section\", \"title\", \"max_years\", \"min_years\", \"life\", \"death\", \"life_if\", \"umbrella\", \"verified\", \"notes\"]],\n                 width='stretch', hide_index=True, height=600)\n\nwith tab4:\n    st.markdown(\"Paste any draft, model-written or not, in English, Hindi or Marathi. Every statutory reference in it must resolve \"\n                \"to the law table or to the few procedural provisions a s.479 application may cite. One unknown section blocks the draft.\")\n    sample = (\"The applicant is charged under Section 303(2) of the Bharatiya Nyaya Sanhita, 2023 and is entitled to release on bond \"\n              \"under the first proviso to Section 479(1) BNSS. Reliance is also placed on Section 999 of the Sanhita and on Article 21 \"\n              \"of the Constitution.\")\n    txt = st.text_area(\"Draft text\", sample, height=160)\n    if st.button(\"Check citations\"):\n        g = gate_check(txt)\n        (st.success if not g.blocked else st.error)(g.summary())\n        st.table([{\"act\": c.act, \"section\": c.section, \"as written\": c.text, \"ok\": c.ok, \"note\": c.reason} for c in g.citations])\n\n```",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Now I can see the file. I need to find the line with the existing download button for \"Download application (.txt)\" in the \"One prisoner\" tab and add the new button right after it. Let me locate the exact line:",
+      "toolUses": [
+        {
+          "id": "toolu_01EPHtLbM8cqKNDLtnkEBXux",
+          "name": "edit_file",
+          "input": {
+            "path": "rihai/app/streamlit_app.py",
+            "old_string": "            st.download_button(\"Download application (.txt)\", application, file_name=f\"s479_application_{ident}_{lang}.txt\")",
+            "new_string": "            st.download_button(\"Download application (.txt)\", application, file_name=f\"s479_application_{ident}_{lang}.txt\")\n            st.download_button(\"Download DLSA memo (.txt)\", d[\"memo\"], file_name=f\"dlsa_memo_{ident}.txt\")"
+          },
+          "status": "done",
+          "preview": "Edited rihai/app/streamlit_app.py (12441 bytes, 1 replacement(s))"
+        }
+      ],
+      "routingInfo": {
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "DEFAULT",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01EPHtLbM8cqKNDLtnkEBXux",
+          "content": "Edited rihai/app/streamlit_app.py (12441 bytes, 1 replacement(s))",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Great! Now let me run the tests to make sure everything passes:",
+      "toolUses": [
+        {
+          "id": "toolu_018oUK3FA5LvRtPhCz5yxPGG",
+          "name": "grep_code",
+          "input": {
+            "query": "pytest test_app"
+          },
+          "status": "done",
+          "preview": "No matches for: pytest test_app"
+        }
+      ],
+      "routingInfo": {
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "DEFAULT",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_018oUK3FA5LvRtPhCz5yxPGG",
+          "content": "No matches for: pytest test_app",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Let me check if the test file exists:",
+      "toolUses": [
+        {
+          "id": "toolu_019EeK7WjrmY9gmJ6wL5NzbJ",
+          "name": "list_files",
+          "input": {
+            "path": "tests"
+          },
+          "status": "done",
+          "preview": "📄 __pycache__\n📄 test_agent.py\n📄 test_app.py\n📄 test_citations.py\n📄 test_i18n.py\n📄 test_s479.py"
+        }
+      ],
+      "routingInfo": {
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "DEFAULT",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_019EeK7WjrmY9gmJ6wL5NzbJ",
+          "content": "📄 __pycache__\n📄 test_agent.py\n📄 test_app.py\n📄 test_citations.py\n📄 test_i18n.py\n📄 test_s479.py",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Perfect! The test file exists. Let me verify my changes by reading the modified section:",
+      "toolUses": [
+        {
+          "id": "toolu_014QyM5R1Yh7xoCmCYzBwQMb",
+          "name": "read_file",
+          "input": {
+            "path": "rihai/app/streamlit_app.py"
+          },
+          "status": "done",
+          "preview": "```\n// rihai/app/streamlit_app.py\n\"\"\"Rihai - Streamlit front end.  streamlit run rihai/app/streamlit_app.py\n\nThree tabs:…"
+        }
+      ],
+      "routingInfo": {
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5-20251001",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "DEFAULT",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5-20251001"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_014QyM5R1Yh7xoCmCYzBwQMb",
+          "content": "```\n// rihai/app/streamlit_app.py\n\"\"\"Rihai - Streamlit front end.  streamlit run rihai/app/streamlit_app.py\n\nThree tabs: one prisoner, a roster CSV, the law table. No names are stored; the roster identifier is whatever the\njail or clinic uses. Everything shown is computed by rihai.eligibility; the application text is the template drafter\nwith the citation gate run on it.\n\"\"\"\nfrom __future__ import annotations\n\nimport io\nimport json\nimport sys\nfrom datetime import date\nfrom pathlib import Path\n\nimport pandas as pd\nimport streamlit as st\n\nROOT = Path(__file__).resolve().parents[2]\nif str(ROOT) not in sys.path:\n    sys.path.insert(0, str(ROOT))\n\nfrom rihai.agent import llm  # noqa: E402\nfrom rihai.agent.draft import Particulars, draft  # noqa: E402\nfrom rihai.eligibility import Charge, Prisoner, Status, assess, assess_roster  # noqa: E402\nfrom rihai.eligibility.s479 import _split_charge  # noqa: E402\nfrom rihai.gate import check as gate_check  # noqa: E402\nfrom rihai.law import all_rows, stats  # noqa: E402\n\nst.set_page_config(page_title=\"Rihai - Section 479 BNSS\", page_icon=\"⚖️\", layout=\"wide\")\n\nst.title(\"Rihai\")\nst.caption(\"Release eligibility of undertrial prisoners under Section 479 of the Bharatiya Nagarik Suraksha Sanhita, 2023. \"\n           \"The code decides; the model narrates. Drafts are for review by legal-aid counsel before filing.\")\n\nwith st.sidebar:\n    st.markdown(\"**How it works**\")\n    st.markdown(\"1. The rule in s.479 runs as code over the roster: charges, custody date, prior convictions.\\n\"\n                \"2. Eligible cases get a template application and a DLSA memo in English, Hindi or Marathi.\\n\"\n                \"3. A citation gate checks every section in every draft against the law table.\\n\"\n                \"4. A model may rewrite the prose; its version is used only if the gate passes and every date, \"\n                \"day count and section is unchanged.\")\n    st.markdown(f\"Model for prose: **{'configured (' + str(llm.config()['model']) + ')' if llm.available() else 'none; template mode'}**\")\n    st.caption(\"Keys live in Streamlit secrets or environment variables, never in the repository.\")\n    st.markdown(\"[Source and law table on GitHub](https://github.com/SainathGaikwad/rihai)\")\n\nSTATUS_HELP = {\n    \"ELIGIBLE\": \"Threshold under s.479(1) met: release on bond (first-time) or bail.\",\n    \"MUST_RELEASE_MAX_TERM\": \"Detained for the full maximum term: third proviso to s.479(1), release is mandatory.\",\n    \"NOT_YET\": \"Threshold not yet reached; the date it will be is shown.\",\n    \"EXCLUDED_LIFE_OR_DEATH\": \"An offence charged carries death or life imprisonment; s.479 does not apply.\",\n    \"EXCLUDED_MULTIPLE_CASES\": \"s.479(2): other cases pending. Verify; the maximum-term cap still applies.\",\n    \"NEEDS_REVIEW\": \"The law table cannot settle it without a human (sub-section, conditional life, no stated ceiling).\",\n    \"UNKNOWN_SECTION\": \"A charge is not in the law table. Nothing is guessed.\",\n}\n\ntab1, tab2, tab3, tab4 = st.tabs([\"One prisoner\", \"Roster (CSV)\", \"Law table\", \"Citation gate\"])\n\nwith tab1:\n    c1, c2 = st.columns([1, 1])\n    with c1:\n        charges_txt = st.text_input(\"Charges (comma-separated)\", \"BNS 303(2)\", help=\"e.g. BNS 303(2), IPC/379, NDPS/20(small)\")\n        custody = st.date_input(\"In custody since\", date(2025, 1, 10), min_value=date(2000, 1, 1), max_value=date.today())\n        first = st.checkbox(\"First-time offender (never convicted of any offence)\", True)\n        multi = st.checkbox(\"Another case / investigation pending (s.479(2))\", False)\n        delay = st.number_input(\"Days of delay attributable to the accused (Explanation)\", 0, 5000, 0)\n        ident = st.text_input(\"Roster identifier (no names)\", \"UTP-0417\")\n        as_of = st.date_input(\"Assess as on\", date.today())\n    with c2:\n        st.markdown(\"**Particulars for the draft** (optional; stay out of logs)\")\n        name = st.text_input(\"Applicant name\", \"\")\n        age = st.text_input(\"Age\", \"\")\n        parent = st.text_input(\"Father's / mother's name\", \"\")\n        ps = st.text_input(\"Police station\", \"\")\n        fir = st.text_input(\"C.R. / FIR No.\", \"\")\n        case = st.text_input(\"Case No.\", \"\")\n        jail = st.text_input(\"Jail\", \"Yerawada Central Prison, Pune\")\n        court = st.text_input(\"Court\", \"the Court of the Judicial Magistrate First Class, Pune\")\n        lang = st.radio(\"Application language\", [\"en\", \"hi\", \"mr\"], horizontal=True,\n                        format_func=lambda k: {\"en\": \"English\", \"hi\": \"हिंदी\", \"mr\": \"मराठी\"}[k],\n                        help=\"Statutory references stay in English in every language; the citation gate runs on all three.\")\n        use_model = st.checkbox(\"Let the model rewrite the prose (gated)\", value=False, disabled=not llm.available(),\n                                help=\"Only offered when a model is configured. Its text replaces the template only if the \"\n                                     \"citation gate passes and every date, day count and section survives unchanged.\")\n\n    if st.button(\"Assess\", type=\"primary\"):\n        charges = [Charge(*_split_charge(c)) for c in charges_txt.split(\",\") if c.strip()]\n        p = Prisoner(charges=charges, custody_start=custody, first_time_offender=first, multiple_cases_pending=multi,\n                     delay_attributable_days=int(delay), identifier=ident)\n        a = assess(p, as_of=as_of)\n        colour = {\"ELIGIBLE\": \"green\", \"MUST_RELEASE_MAX_TERM\": \"green\", \"NOT_YET\": \"orange\"}.get(a.status.value, \"red\")\n        st.markdown(f\"### :{colour}[{a.status.value}]\")\n        st.caption(STATUS_HELP[a.status.value])\n        m1, m2, m3, m4 = st.columns(4)\n        m1.metric(\"Controlling section\", a.controlling.key if a.controlling else \"-\")\n        m2.metric(\"Maximum term\", f\"{a.max_term_years:g} y\" if a.max_term_years is not None else \"-\")\n        m3.metric(\"Days served\", a.days_served if a.days_served is not None else \"-\")\n        m4.metric(\"Eligible from\", a.eligible_on.strftime(\"%d %b %Y\") if a.eligible_on else \"-\")\n        for r in a.reasons:\n            st.write(\"• \" + r)\n        if a.unverified:\n            st.warning(\"Law-table rows used that are not yet verified against India Code: \" + \", \".join(a.unverified))\n        if a.eligible:\n            part = Particulars(applicant_name=name or \"________\", applicant_age=age or \"__\", parent_name=parent or \"________\",\n                               police_station=ps or \"________\", fir_no=fir or \"____ of 20__\", case_no=case or \"____ of 20__\",\n                               jail=jail, court=court)\n            d = draft(a, part, lang=lang)\n            application = d[\"application\"]\n            g = d[\"gate\"]\n            if use_model:\n                with st.spinner(\"Model rewriting the prose; gate checking it\"):\n                    pol = llm.polish(application, a, lang=lang)\n                application = pol.text\n                (st.info if pol.polished else st.warning)(pol.reason + (f\" (missing: {', '.join(pol.missing_anchors)})\" if pol.missing_anchors else \"\"))\n                g = gate_check(application)\n            st.markdown(\"#### Citation gate\")\n            (st.success if not g.blocked else st.error)(g.summary())\n            with st.expander(\"Citations read\"):\n                st.table([{\"act\": c.act, \"section\": c.section, \"as written\": c.text, \"ok\": c.ok, \"note\": c.reason} for c in g.citations])\n            st.markdown(\"#### DLSA / UTRC memo\")\n            st.code(d[\"memo\"], language=None)\n            st.markdown(\"#### Application (review before filing)\")\n            st.text_area(\"application\", application, height=600, label_visibility=\"collapsed\")\n            st.download_button(\"Download application (.txt)\", application, file_name=f\"s479_application_{ident}_{lang}.txt\")\n            st.download_button(\"Download DLSA memo (.txt)\", d[\"memo\"], file_name=f\"dlsa_memo_{ident}.txt\")\n        else:\n            part = Particulars(jail=jail, court=court)\n            st.markdown(\"#### DLSA / UTRC memo\")\n            st.code(draft(a, part)[\"memo\"], language=None)\n\nwith tab2:\n    st.markdown(\"Upload a roster CSV with columns: `identifier, charges, custody_start, first_time_offender, multiple_cases_pending, delay_attributable_days`. \"\n                \"`charges` is `;`-separated, e.g. `BNS 303(2);IPC/411`. Dates ISO. No names.\")\n    sample = ROOT / \"data\" / \"samples\" / \"roster_sample.csv\"\n    if sample.exists():\n        st.download_button(\"Download the sample roster\", sample.read_bytes(), file_name=\"roster_sample.csv\")\n    up = st.file_uploader(\"Roster CSV\", type=[\"csv\"])\n    as_of2 = st.date_input(\"Assess as on \", date.today(), key=\"asof2\")\n    if up is not None or st.button(\"Run on the sample roster\"):\n        df = pd.read_csv(up if up is not None else sample)\n        rows = []\n        for _, r in df.iterrows():\n            rows.append({\n                \"identifier\": str(r.get(\"identifier\", \"\")),\n                \"charges\": [c.strip() for c in str(r.get(\"charges\", \"\")).split(\";\") if c.strip()],\n                \"custody_start\": str(r.get(\"custody_start\", \"\")),\n                \"first_time_offender\": str(r.get(\"first_time_offender\", \"\")).strip().lower() in (\"1\", \"true\", \"yes\", \"y\"),\n                \"multiple_cases_pending\": str(r.get(\"multiple_cases_pending\", \"\")).strip().lower() in (\"1\", \"true\", \"yes\", \"y\"),\n                \"delay_attributable_days\": int(r.get(\"delay_attributable_days\", 0) or 0),\n            })\n        out = assess_roster(rows, as_of=as_of2)\n        res = pd.DataFrame([{\n            \"identifier\": a.prisoner.identifier, \"status\": a.status.value,\n            \"controlling\": a.controlling.key if a.controlling else \"\", \"max_years\": a.max_term_years,\n            \"first_time\": a.prisoner.first_time_offender, \"days_served\": a.days_served,\n            \"eligible_on\": a.eligible_on.isoformat() if a.eligible_on else \"\",\n            \"release_mode\": a.release_mode or \"\", \"reason\": a.reasons[0] if a.reasons else \"\",\n        } for a in out])\n        counts = res[\"status\"].value_counts().to_dict()\n        st.markdown(\"**Summary:** \" + \" · \".join(f\"{k} {v}\" for k, v in counts.items()))\n        st.dataframe(res, width='stretch', hide_index=True)\n        st.download_button(\"Download results (.csv)\", res.to_csv(index=False), file_name=\"rihai_results.csv\")\n        elig = [a for a in out if a.eligible]\n        if elig:\n            st.markdown(f\"**{len(elig)} prisoner(s) eligible** - memos for the DLSA list:\")\n            st.code(\"\\n\\n\".join(draft(a, Particulars())[\"memo\"] for a in elig), language=None)\n\nwith tab3:\n    s = stats()\n    st.markdown(f\"**{s['rows']} rows** · {s['verified']} verified against India Code · {s['excluded_life_or_death']} carry death/life · \"\n                f\"{s['umbrella']} umbrella sections · {s['unbounded']} with no stated ceiling\")\n    st.caption(\"Section titles and the IPC/BNS mapping come from the GSMS-B concordance (CC-BY-4.0). Maximum terms are encoded \"\n               \"from the statute text and flagged unverified until a reviewer checks them against the official text; the engine \"\n               \"refuses unknown sections and marks unverified ones.\")\n    tdf = pd.DataFrame([r.to_dict() for r in all_rows().values()])\n    q = st.text_input(\"Filter (act, section or title)\", \"\")\n    if q:\n        m = tdf.apply(lambda row: q.lower() in f\"{row['act']} {row['section']} {row['title']}\".lower(), axis=1)\n        tdf = tdf[m]\n    st.dataframe(tdf[[\"act\", \"section\", \"title\", \"max_years\", \"min_years\", \"life\", \"death\", \"life_if\", \"umbrella\", \"verified\", \"notes\"]],\n                 width='stretch', hide_index=True, height=600)\n\nwith tab4:\n    st.markdown(\"Paste any draft, model-written or not, in English, Hindi or Marathi. Every statutory reference in it must resolve \"\n                \"to the law table or to the few procedural provisions a s.479 application may cite. One unknown section blocks the draft.\")\n    sample = (\"The applicant is charged under Section 303(2) of the Bharatiya Nyaya Sanhita, 2023 and is entitled to release on bond \"\n              \"under the first proviso to Section 479(1) BNSS. Reliance is also placed on Section 999 of the Sanhita and on Article 21 \"\n              \"of the Constitution.\")\n    txt = st.text_area(\"Draft text\", sample, height=160)\n    if st.button(\"Check citations\"):\n        g = gate_check(txt)\n        (st.success if not g.blocked else st.error)(g.summary())\n        st.table([{\"act\": c.act, \"section\": c.section, \"as written\": c.text, \"ok\": c.ok, \"note\": c.reason} for c in g.citations])\n\n```",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "toolUses": [
+        {
+          "id": "call_QZXzAZLcjoO35IbeIwSFL8Ld",
+          "name": "read_file",
+          "input": {
+            "path": "tests/test_app.py"
+          },
+          "status": "done",
+          "preview": "```\n// tests/test_app.py\n\"\"\"The Streamlit front end, run headlessly: the demo case, an unknown section, and the sample r…"
+        }
+      ],
+      "routingInfo": {
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": true,
+            "evidence": "6 user turns"
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "LONG_THREAD",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "openai",
+      "model": "gpt-5-mini"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "call_QZXzAZLcjoO35IbeIwSFL8Ld",
+          "content": "```\n// tests/test_app.py\n\"\"\"The Streamlit front end, run headlessly: the demo case, an unknown section, and the sample roster must all render.\"\"\"\nfrom pathlib import Path\n\nimport pytest\n\nst_testing = pytest.importorskip(\"streamlit.testing.v1\")\n\nAPP = str(Path(__file__).resolve().parents[1] / \"rihai\" / \"app\" / \"streamlit_app.py\")\n\n\ndef _app():\n    return st_testing.AppTest.from_file(APP, default_timeout=60).run()\n\n\ndef test_demo_case_renders_eligible_with_gate_pass():\n    at = _app()\n    at.button[0].click().run()\n    assert not list(at.exception)\n    assert any(m.value == \"### :green[ELIGIBLE]\" for m in at.markdown)\n    assert any(v.value.startswith(\"PASS\") for v in at.success)\n\n\ndef test_unknown_section_does_not_crash():\n    at = _app()\n    at.text_input[0].set_value(\"BNS 9999\").run()\n    at.button[0].click().run()\n    assert not list(at.exception)\n    assert any(m.value == \"### :red[UNKNOWN_SECTION]\" for m in at.markdown)\n\n\ndef test_sample_roster_runs():\n    at = _app()\n    [b for b in at.button if b.label == \"Run on the sample roster\"][0].click().run()\n    assert not list(at.exception)\n    assert any(m.value.startswith(\"**Summary:** ELIGIBLE\") for m in at.markdown)\n\n```",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done — I added the new download button right after the existing one.\n\nChange made\n- File: rihai/app/streamlit_app.py\n- Inserted this line immediately after the existing application download button:\n  st.download_button(\"Download DLSA memo (.txt)\", d[\"memo\"], file_name=f\"dlsa_memo_{ident}.txt\")\n\nI cannot run pytest from this environment. Please run the tests locally with:\n\npython -m pytest -q tests/test_app.py\n\nIf anything fails, paste the failing test output here and I will fix it.",
+      "toolUses": [],
+      "routingInfo": {
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": true,
+            "evidence": "7 user turns"
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "LONG_THREAD",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "openai",
+      "model": "gpt-5-mini"
+    },
+    {
+      "role": "user",
+      "content": "In scripts/verify.py add a --list flag. When given, print one line per section in PRIORITY showing act, section, title, max_years, life and death from the law table (use rihai.law.lookup; print \"UNKNOWN\" if lookup raises), then exit without doing anything else. Keep all existing behaviour unchanged. Run: python scripts/verify.py --list  to check it works."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "toolUses": [
+        {
+          "id": "call_8glT8R6ZIwvoUsHAVyePuiaO",
+          "name": "list_files",
+          "input": {
+            "path": ""
+          },
+          "status": "done",
+          "preview": "📄 data\n📄 docs\n📄 rihai\n📄 scripts\n📄 tests\n📄 .gitignore\n📄 LICENSE\n📄 NOTICE\n📄 pyproject.toml\n📄 README.md\n📄 requir…"
+        }
+      ],
+      "routingInfo": {
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": true,
+            "evidence": "8 user turns"
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "LONG_THREAD",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "openai",
+      "model": "gpt-5-mini"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "call_8glT8R6ZIwvoUsHAVyePuiaO",
+          "content": "📄 data\n📄 docs\n📄 rihai\n📄 scripts\n📄 tests\n📄 .gitignore\n📄 LICENSE\n📄 NOTICE\n📄 pyproject.toml\n📄 README.md\n📄 requirements.txt\n📄 run_rihai.bat",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "toolUses": [
+        {
+          "id": "call_MacYNjt3rxmAADDNscssSQ45",
+          "name": "list_files",
+          "input": {
+            "path": "scripts"
+          },
+          "status": "done",
+          "preview": "📄 handout.py\n📄 verify.py"
+        }
+      ],
+      "routingInfo": {
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": true,
+            "evidence": "9 user turns"
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "LONG_THREAD",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "openai",
+      "model": "gpt-5-mini"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "call_MacYNjt3rxmAADDNscssSQ45",
+          "content": "📄 handout.py\n📄 verify.py",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "toolUses": [
+        {
+          "id": "call_XiQG7tMHDhiLqbk6HIy6Jb3l",
+          "name": "read_file",
+          "input": {
+            "path": "scripts/verify.py"
+          },
+          "status": "done",
+          "preview": "```\n// scripts/verify.py\n#!/usr/bin/env python3\n\"\"\"Record that a law-table row has been checked against the official tex…"
+        }
+      ],
+      "routingInfo": {
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": true,
+            "evidence": "10 user turns"
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "LONG_THREAD",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "openai",
+      "model": "gpt-5-mini"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "call_XiQG7tMHDhiLqbk6HIy6Jb3l",
+          "content": "```\n// scripts/verify.py\n#!/usr/bin/env python3\n\"\"\"Record that a law-table row has been checked against the official text.\n\nA law student opens the section on India Code (or the bare Act), confirms the maximum term and whether death/life\nis a specified punishment, and runs:\n\n    python scripts/verify.py BNS 303(2) --max-years 3 --by \"A. Student, ILS legal aid clinic\" \\\n        --url \"https://www.indiacode.nic.in/show-data?...&sectionno=303\"\n\n    python scripts/verify.py IPC 326 --max-years 10 --life --by \"...\" --url \"...\"\n    python scripts/verify.py NDPS \"20(small)\" --max-years 1 --by \"...\" --url \"...\"\n\nEach call appends one line to data/law/verified.jsonl. The table loader applies it on top of the encoded value and\nflips `verified` to true, so the engine stops reporting that row as unverified. Disagreements with the encoded value\nare printed loudly; the verified value wins.\n\n    python scripts/verify.py --status        # how many rows are verified, and which common ones are not\n\"\"\"\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport sys\nfrom datetime import date\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[1]\nsys.path.insert(0, str(ROOT))\n\nfrom rihai.law import UnknownSection, all_rows, lookup  # noqa: E402\n\nOUT = ROOT / \"data\" / \"law\" / \"verified.jsonl\"\n\n# The sections that fill rosters; verify these first.\nPRIORITY = [\n    (\"BNS\", \"303(2)\"), (\"BNS\", \"304(2)\"), (\"BNS\", \"305\"), (\"BNS\", \"115(2)\"), (\"BNS\", \"117(2)\"), (\"BNS\", \"118(1)\"), (\"BNS\", \"118(2)\"),\n    (\"BNS\", \"109(1)\"), (\"BNS\", \"318(2)\"), (\"BNS\", \"318(4)\"), (\"BNS\", \"316(2)\"), (\"BNS\", \"317(2)\"), (\"BNS\", \"309(4)\"), (\"BNS\", \"310(2)\"),\n    (\"BNS\", \"351(2)\"), (\"BNS\", \"351(3)\"), (\"BNS\", \"191(2)\"), (\"BNS\", \"191(3)\"), (\"BNS\", \"189(2)\"), (\"BNS\", \"74\"), (\"BNS\", \"85\"),\n    (\"BNS\", \"137(2)\"), (\"BNS\", \"331(3)\"), (\"BNS\", \"336(3)\"), (\"BNS\", \"106(1)\"), (\"BNS\", \"103(1)\"), (\"BNS\", \"64(1)\"),\n    (\"IPC\", \"379\"), (\"IPC\", \"380\"), (\"IPC\", \"323\"), (\"IPC\", \"324\"), (\"IPC\", \"325\"), (\"IPC\", \"326\"), (\"IPC\", \"307\"), (\"IPC\", \"302\"),\n    (\"IPC\", \"420\"), (\"IPC\", \"406\"), (\"IPC\", \"411\"), (\"IPC\", \"392\"), (\"IPC\", \"395\"), (\"IPC\", \"457\"), (\"IPC\", \"498A\"), (\"IPC\", \"506\"),\n    (\"IPC\", \"354\"), (\"IPC\", \"363\"), (\"IPC\", \"376\"), (\"IPC\", \"147\"), (\"IPC\", \"148\"), (\"IPC\", \"468\"), (\"IPC\", \"471\"),\n    (\"NDPS\", \"20(small)\"), (\"NDPS\", \"20(intermediate)\"), (\"NDPS\", \"20(commercial)\"), (\"NDPS\", \"22(small)\"), (\"NDPS\", \"22(commercial)\"),\n    (\"ARMS\", \"25(1B)\"), (\"POCSO\", \"8\"), (\"POCSO\", \"10\"), (\"MPA\", \"65\"),\n]\n\n\ndef status() -> None:\n    rows = all_rows()\n    n = len(rows)\n    v = sum(r.verified for r in rows.values())\n    print(f\"{v} of {n} rows verified ({100 * v / n:.1f}%)\")\n    todo = [f\"{a}/{s}\" for a, s in PRIORITY if not rows.get(f\"{a}/{s}\", None) or not rows[f\"{a}/{s}\"].verified]\n    print(f\"priority rows still unverified: {len(todo)} of {len(PRIORITY)}\")\n    for k in todo:\n        r = rows.get(k)\n        enc = \"(not in table!)\" if r is None else f\"encoded max={r.max_years} life={r.life} death={r.death}\"\n        print(f\"  {k:22s} {enc}\")\n\n\ndef main() -> int:\n    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)\n    ap.add_argument(\"act\", nargs=\"?\")\n    ap.add_argument(\"section\", nargs=\"?\")\n    ap.add_argument(\"--max-years\", type=float, help=\"maximum term in years as the statute states it (0 for fine-only)\")\n    ap.add_argument(\"--min-years\", type=float, default=None)\n    ap.add_argument(\"--life\", action=\"store_true\", help=\"life imprisonment is one of the specified punishments\")\n    ap.add_argument(\"--death\", action=\"store_true\", help=\"death is one of the specified punishments\")\n    ap.add_argument(\"--life-if\", default=None, help=\"condition under which life becomes available\")\n    ap.add_argument(\"--by\", required=False, help=\"reviewer name and affiliation\")\n    ap.add_argument(\"--url\", required=False, help=\"India Code (or other official) URL of the section text\")\n    ap.add_argument(\"--note\", default=\"\")\n    ap.add_argument(\"--status\", action=\"store_true\", help=\"print verification coverage and exit\")\n    args = ap.parse_args()\n\n    if args.status or not args.act:\n        status()\n        return 0\n    if args.max_years is None or not args.by or not args.url:\n        ap.error(\"--max-years, --by and --url are required to record a verification\")\n\n    try:\n        r = lookup(args.act, args.section)\n    except UnknownSection as e:\n        print(f\"refusing: {e}. Add the row to the punishments file first, then verify it.\")\n        return 2\n    if r.umbrella:\n        print(f\"refusing: {r.key} is an umbrella; verify its sub-sections: {', '.join(r.variants)}\")\n        return 2\n\n    rec = {\n        \"act\": r.act, \"section\": r.section, \"max_years\": args.max_years, \"life\": bool(args.life), \"death\": bool(args.death),\n        \"source_url\": args.url, \"verified_by\": args.by, \"verified_on\": date.today().isoformat(),\n    }\n    if args.min_years is not None:\n        rec[\"min_years\"] = args.min_years\n    if args.life_if:\n        rec[\"life_if\"] = args.life_if\n    if args.note:\n        rec[\"notes\"] = (r.notes + \" | \" if r.notes else \"\") + f\"verified: {args.note}\"\n\n    diffs = []\n    if r.max_years != args.max_years:\n        diffs.append(f\"max_years encoded {r.max_years} -> verified {args.max_years}\")\n    if r.life != bool(args.life):\n        diffs.append(f\"life encoded {r.life} -> verified {bool(args.life)}\")\n    if r.death != bool(args.death):\n        diffs.append(f\"death encoded {r.death} -> verified {bool(args.death)}\")\n    OUT.parent.mkdir(parents=True, exist_ok=True)\n    with OUT.open(\"a\", encoding=\"utf-8\") as fh:\n        fh.write(json.dumps(rec, ensure_ascii=False) + \"\\n\")\n    print(f\"recorded {r.key} as verified by {args.by}\")\n    if diffs:\n        print(\"DISAGREEMENT with the encoded value (the verified value now wins):\")\n        for d in diffs:\n            print(\"  \" + d)\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n\n```",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "toolUses": [
+        {
+          "id": "call_ATqC3qp1IqBBreBzkRnwCQXg",
+          "name": "edit_file",
+          "input": {
+            "path": "scripts/verify.py",
+            "old_string": "    ap.add_argument(\"--status\", action=\"store_true\", help=\"print verification coverage and exit\")\n    args = ap.parse_args()\n\n    if args.status or not args.act:\n        status()\n        return 0",
+            "new_string": "    ap.add_argument(\"--status\", action=\"store_true\", help=\"print verification coverage and exit\")\n    ap.add_argument(\"--list\", action=\"store_true\", help=\"list priority sections from the law table and exit\")\n    args = ap.parse_args()\n\n    if args.list:\n        for a, s in PRIORITY:\n            try:\n                r = lookup(a, s)\n                print(f\"{r.act} {r.section} {r.title} {r.max_years} {r.life} {r.death}\")\n            except UnknownSection:\n                print(f\"{a} {s} UNKNOWN\")\n        return 0\n\n    if args.status or not args.act:\n        status()\n        return 0"
+          },
+          "status": "done",
+          "preview": "Edited scripts/verify.py (6303 bytes, 1 replacement(s))"
+        }
+      ],
+      "routingInfo": {
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": true,
+            "evidence": "11 user turns"
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "LONG_THREAD",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "openai",
+      "model": "gpt-5-mini"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "call_ATqC3qp1IqBBreBzkRnwCQXg",
+          "content": "Edited scripts/verify.py (6303 bytes, 1 replacement(s))",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "toolUses": [
+        {
+          "id": "call_qGpDl2OmdpqmYRDQFupZ7bjg",
+          "name": "read_file",
+          "input": {
+            "path": "scripts/verify.py"
+          },
+          "status": "done",
+          "preview": "```\n// scripts/verify.py\n#!/usr/bin/env python3\n\"\"\"Record that a law-table row has been checked against the official tex…"
+        }
+      ],
+      "routingInfo": {
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": true,
+            "evidence": "12 user turns"
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "LONG_THREAD",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "openai",
+      "model": "gpt-5-mini"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "call_qGpDl2OmdpqmYRDQFupZ7bjg",
+          "content": "```\n// scripts/verify.py\n#!/usr/bin/env python3\n\"\"\"Record that a law-table row has been checked against the official text.\n\nA law student opens the section on India Code (or the bare Act), confirms the maximum term and whether death/life\nis a specified punishment, and runs:\n\n    python scripts/verify.py BNS 303(2) --max-years 3 --by \"A. Student, ILS legal aid clinic\" \\\n        --url \"https://www.indiacode.nic.in/show-data?...&sectionno=303\"\n\n    python scripts/verify.py IPC 326 --max-years 10 --life --by \"...\" --url \"...\"\n    python scripts/verify.py NDPS \"20(small)\" --max-years 1 --by \"...\" --url \"...\"\n\nEach call appends one line to data/law/verified.jsonl. The table loader applies it on top of the encoded value and\nflips `verified` to true, so the engine stops reporting that row as unverified. Disagreements with the encoded value\nare printed loudly; the verified value wins.\n\n    python scripts/verify.py --status        # how many rows are verified, and which common ones are not\n\"\"\"\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport sys\nfrom datetime import date\nfrom pathlib import Path\n\nROOT = Path(__file__).resolve().parents[1]\nsys.path.insert(0, str(ROOT))\n\nfrom rihai.law import UnknownSection, all_rows, lookup  # noqa: E402\n\nOUT = ROOT / \"data\" / \"law\" / \"verified.jsonl\"\n\n# The sections that fill rosters; verify these first.\nPRIORITY = [\n    (\"BNS\", \"303(2)\"), (\"BNS\", \"304(2)\"), (\"BNS\", \"305\"), (\"BNS\", \"115(2)\"), (\"BNS\", \"117(2)\"), (\"BNS\", \"118(1)\"), (\"BNS\", \"118(2)\"),\n    (\"BNS\", \"109(1)\"), (\"BNS\", \"318(2)\"), (\"BNS\", \"318(4)\"), (\"BNS\", \"316(2)\"), (\"BNS\", \"317(2)\"), (\"BNS\", \"309(4)\"), (\"BNS\", \"310(2)\"),\n    (\"BNS\", \"351(2)\"), (\"BNS\", \"351(3)\"), (\"BNS\", \"191(2)\"), (\"BNS\", \"191(3)\"), (\"BNS\", \"189(2)\"), (\"BNS\", \"74\"), (\"BNS\", \"85\"),\n    (\"BNS\", \"137(2)\"), (\"BNS\", \"331(3)\"), (\"BNS\", \"336(3)\"), (\"BNS\", \"106(1)\"), (\"BNS\", \"103(1)\"), (\"BNS\", \"64(1)\"),\n    (\"IPC\", \"379\"), (\"IPC\", \"380\"), (\"IPC\", \"323\"), (\"IPC\", \"324\"), (\"IPC\", \"325\"), (\"IPC\", \"326\"), (\"IPC\", \"307\"), (\"IPC\", \"302\"),\n    (\"IPC\", \"420\"), (\"IPC\", \"406\"), (\"IPC\", \"411\"), (\"IPC\", \"392\"), (\"IPC\", \"395\"), (\"IPC\", \"457\"), (\"IPC\", \"498A\"), (\"IPC\", \"506\"),\n    (\"IPC\", \"354\"), (\"IPC\", \"363\"), (\"IPC\", \"376\"), (\"IPC\", \"147\"), (\"IPC\", \"148\"), (\"IPC\", \"468\"), (\"IPC\", \"471\"),\n    (\"NDPS\", \"20(small)\"), (\"NDPS\", \"20(intermediate)\"), (\"NDPS\", \"20(commercial)\"), (\"NDPS\", \"22(small)\"), (\"NDPS\", \"22(commercial)\"),\n    (\"ARMS\", \"25(1B)\"), (\"POCSO\", \"8\"), (\"POCSO\", \"10\"), (\"MPA\", \"65\"),\n]\n\n\ndef status() -> None:\n    rows = all_rows()\n    n = len(rows)\n    v = sum(r.verified for r in rows.values())\n    print(f\"{v} of {n} rows verified ({100 * v / n:.1f}%)\")\n    todo = [f\"{a}/{s}\" for a, s in PRIORITY if not rows.get(f\"{a}/{s}\", None) or not rows[f\"{a}/{s}\"].verified]\n    print(f\"priority rows still unverified: {len(todo)} of {len(PRIORITY)}\")\n    for k in todo:\n        r = rows.get(k)\n        enc = \"(not in table!)\" if r is None else f\"encoded max={r.max_years} life={r.life} death={r.death}\"\n        print(f\"  {k:22s} {enc}\")\n\n\ndef main() -> int:\n    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)\n    ap.add_argument(\"act\", nargs=\"?\")\n    ap.add_argument(\"section\", nargs=\"?\")\n    ap.add_argument(\"--max-years\", type=float, help=\"maximum term in years as the statute states it (0 for fine-only)\")\n    ap.add_argument(\"--min-years\", type=float, default=None)\n    ap.add_argument(\"--life\", action=\"store_true\", help=\"life imprisonment is one of the specified punishments\")\n    ap.add_argument(\"--death\", action=\"store_true\", help=\"death is one of the specified punishments\")\n    ap.add_argument(\"--life-if\", default=None, help=\"condition under which life becomes available\")\n    ap.add_argument(\"--by\", required=False, help=\"reviewer name and affiliation\")\n    ap.add_argument(\"--url\", required=False, help=\"India Code (or other official) URL of the section text\")\n    ap.add_argument(\"--note\", default=\"\")\n    ap.add_argument(\"--status\", action=\"store_true\", help=\"print verification coverage and exit\")\n    ap.add_argument(\"--list\", action=\"store_true\", help=\"list priority sections from the law table and exit\")\n    args = ap.parse_args()\n\n    if args.list:\n        for a, s in PRIORITY:\n            try:\n                r = lookup(a, s)\n                print(f\"{r.act} {r.section} {r.title} {r.max_years} {r.life} {r.death}\")\n            except UnknownSection:\n                print(f\"{a} {s} UNKNOWN\")\n        return 0\n\n    if args.status or not args.act:\n        status()\n        return 0\n    if args.max_years is None or not args.by or not args.url:\n        ap.error(\"--max-years, --by and --url are required to record a verification\")\n\n    try:\n        r = lookup(args.act, args.section)\n    except UnknownSection as e:\n        print(f\"refusing: {e}. Add the row to the punishments file first, then verify it.\")\n        return 2\n    if r.umbrella:\n        print(f\"refusing: {r.key} is an umbrella; verify its sub-sections: {', '.join(r.variants)}\")\n        return 2\n\n    rec = {\n        \"act\": r.act, \"section\": r.section, \"max_years\": args.max_years, \"life\": bool(args.life), \"death\": bool(args.death),\n        \"source_url\": args.url, \"verified_by\": args.by, \"verified_on\": date.today().isoformat(),\n    }\n    if args.min_years is not None:\n        rec[\"min_years\"] = args.min_years\n    if args.life_if:\n        rec[\"life_if\"] = args.life_if\n    if args.note:\n        rec[\"notes\"] = (r.notes + \" | \" if r.notes else \"\") + f\"verified: {args.note}\"\n\n    diffs = []\n    if r.max_years != args.max_years:\n        diffs.append(f\"max_years encoded {r.max_years} -> verified {args.max_years}\")\n    if r.life != bool(args.life):\n        diffs.append(f\"life encoded {r.life} -> verified {bool(args.life)}\")\n    if r.death != bool(args.death):\n        diffs.append(f\"death encoded {r.death} -> verified {bool(args.death)}\")\n    OUT.parent.mkdir(parents=True, exist_ok=True)\n    with OUT.open(\"a\", encoding=\"utf-8\") as fh:\n        fh.write(json.dumps(rec, ensure_ascii=False) + \"\\n\")\n    print(f\"recorded {r.key} as verified by {args.by}\")\n    if diffs:\n        print(\"DISAGREEMENT with the encoded value (the verified value now wins):\")\n        for d in diffs:\n            print(\"  \" + d)\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n\n```",
+          "is_error": false
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "Done — I added the --list flag to scripts/verify.py.\n\nWhat I changed\n- File: scripts/verify.py\n- Added argument: --list\n- When --list is given the script now prints one line per (act, section) in PRIORITY:\n  - If lookup succeeds: prints \"act section title max_years life death\"\n  - If lookup raises UnknownSection: prints \"ACT SECTION UNKNOWN\"\n- The script exits immediately after listing. All other behavior is unchanged.\n\nExample of the added logic (already in the file):\n```\nap.add_argument(\"--list\", action=\"store_true\", help=\"list priority sections from the law table and exit\")\n...\nif args.list:\n    for a, s in PRIORITY:\n        try:\n            r = lookup(a, s)\n            print(f\"{r.act} {r.section} {r.title} {r.max_years} {r.life} {r.death}\")\n        except UnknownSection:\n            print(f\"{a} {s} UNKNOWN\")\n    return 0\n```\n\nI can't run commands in your environment — please run:\n\npython scripts/verify.py --list\n\nIf the output isn't what you expect, paste it here and I'll adjust.",
+      "toolUses": [],
+      "routingInfo": {
+        "provider": "openai",
+        "model": "gpt-5-mini",
+        "trace": [
+          {
+            "signal": "FAST_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "DEEP_INTENT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "REASONING",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "HUGE_CONTEXT",
+            "matched": false,
+            "evidence": null
+          },
+          {
+            "signal": "LONG_THREAD",
+            "matched": true,
+            "evidence": "13 user turns"
+          },
+          {
+            "signal": "STACK_TRACE",
+            "matched": false,
+            "evidence": null
+          }
+        ],
+        "decidedReason": "LONG_THREAD",
+        "isExplicit": false,
+        "speculative": false
+      },
+      "provider": "openai",
+      "model": "gpt-5-mini"
+    }
+  ]
+}
