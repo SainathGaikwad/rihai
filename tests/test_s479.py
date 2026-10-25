@@ -176,3 +176,38 @@ def test_ipc_392_bare_is_reviewed_with_both_limbs_shown():
     assert plain.status == Status.ELIGIBLE and plain.eligible_on == _d(2026, 6, 1)
     highway = assess(Prisoner(charges=[Charge("IPC", "392(highway)")], custody_start=_d(2021, 6, 1), first_time_offender=False), as_of=_d(2026, 10, 24))
     assert highway.status == Status.NOT_YET and highway.eligible_on == _d(2028, 6, 1)
+
+
+# ---- lessons from published court orders (data/validation/court_orders.csv)
+
+def test_derivative_sections_follow_the_principal_offence():
+    """IPC 120B / 34 / NDPS 29 carry no punishment of their own; a charge-sheet full of them must not stall."""
+    from datetime import date as _d
+    a = assess(Prisoner(charges=[Charge("IPC", "420"), Charge("IPC", "120B"), Charge("IPC", "34")], custody_start=_d(2022, 1, 1), first_time_offender=False), as_of=_d(2026, 1, 1))
+    assert a.status == Status.ELIGIBLE and a.controlling.key == "IPC/420" and any("principal offence" in r for r in a.reasons)
+    alone = assess(Prisoner(charges=[Charge("IPC", "120B")], custody_start=_d(2022, 1, 1), first_time_offender=False), as_of=_d(2026, 1, 1))
+    assert alone.status == Status.NEEDS_REVIEW and "no principal offence" in alone.reasons[0]
+
+
+def test_harmless_umbrella_does_not_block():
+    """Bare IPC 505 (3 or 5 years) next to IPC 354B (7 years) cannot change the threshold, so it is noted, not blocking."""
+    from datetime import date as _d
+    a = assess(Prisoner(charges=[Charge("IPC", "354B"), Charge("IPC", "505")], custody_start=_d(2023, 10, 20), first_time_offender=False), as_of=_d(2026, 4, 28))
+    assert a.status == Status.NOT_YET and a.controlling.key == "IPC/354B" and any("cannot exceed" in r for r in a.reasons)
+    b = assess(Prisoner(charges=[Charge("IPC", "392"), Charge("IPC", "411")], custody_start=_d(2023, 10, 20), first_time_offender=False), as_of=_d(2026, 4, 28))
+    assert b.status == Status.NEEDS_REVIEW   # 392 can be 10 or 14 years, above 411's 3: still a question
+
+
+def test_exclusion_hint_names_the_section_it_rests_on():
+    from datetime import date as _d
+    a = assess(Prisoner(charges=[Charge("IPC", "406"), Charge("IPC", "409"), Charge("IPC", "420")], custody_start=_d(2023, 7, 21), first_time_offender=True), as_of=_d(2026, 4, 13))
+    assert a.status == Status.EXCLUDED_LIFE_OR_DEATH and "EXCLUSION_HINGES_ON:IPC/409" in a.flags
+    assert any("IPC/420 (7 years)" in r and "2025-11-21" in r for r in a.reasons)
+
+
+def test_ndps_five_year_directions_are_flagged():
+    from datetime import date as _d
+    a = assess(Prisoner(charges=[Charge("NDPS", "21(commercial)"), Charge("NDPS", "29")], custody_start=_d(2020, 1, 1), first_time_offender=False), as_of=_d(2025, 6, 1))
+    assert a.status == Status.NOT_YET and "NDPS_FIVE_YEAR_RULE" in a.flags
+    b = assess(Prisoner(charges=[Charge("NDPS", "21(commercial)")], custody_start=_d(2023, 1, 1), first_time_offender=False), as_of=_d(2025, 6, 1))
+    assert "NDPS_FIVE_YEAR_RULE" not in b.flags

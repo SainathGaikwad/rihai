@@ -29,7 +29,7 @@ ACT_ALIASES = {
     "SCST": "SCST", "SC/ST": "SCST", "SC/ST ACT": "SCST", "DPA": "DPA", "DOWRY PROHIBITION ACT": "DPA",
     "ITPA": "ITPA", "PITA": "ITPA", "ECA": "ECA", "PCA": "PCA", "PC ACT": "PCA", "MV": "MV", "MV ACT": "MV",
     "ELEC": "ELEC", "ELECTRICITY ACT": "ELEC", "WLPA": "WLPA", "EXPL": "EXPL", "EXPLOSIVE SUBSTANCES ACT": "EXPL",
-    "GAMB": "GAMB", "GAMBLING ACT": "GAMB",
+    "GAMB": "GAMB", "GAMBLING ACT": "GAMB", "CGST": "CGST", "CGST ACT": "CGST", "GST": "CGST",
 }
 
 SOURCE_URLS = {
@@ -38,6 +38,7 @@ SOURCE_URLS = {
     "NDPS": "https://www.indiacode.nic.in/handle/123456789/1791",
     "ARMS": "https://www.indiacode.nic.in/handle/123456789/1398",
     "POCSO": "https://www.indiacode.nic.in/handle/123456789/2079",
+    "CGST": "https://www.indiacode.nic.in/handle/123456789/2237",
     "UAPA": "https://www.indiacode.nic.in/handle/123456789/1470",
     "PMLA": "https://www.indiacode.nic.in/handle/123456789/2036",
     "IT": "https://www.indiacode.nic.in/handle/123456789/1999",

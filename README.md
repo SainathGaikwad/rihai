@@ -41,7 +41,7 @@ Nothing in Rihai files anything, sends anything or decides anything. Legal-aid c
 ## How it fits together
 
 ```
- roster CSV / one case                      law table (757 rows, verified flags)
+ roster CSV / one case                      law table (783 rows, verified flags)
         |                                              |
         v                                              v
  rihai/eligibility/s479.py  <----- lookup -----  rihai/law/table.py
@@ -66,7 +66,7 @@ The model never sees a tool that can compute a date or a maximum term. It can lo
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                              # 54 tests: rule, gate, three languages, model contract, guardrails, app
+python -m pytest -q                              # 58 tests: rule, gate, three languages, model contract, guardrails, app
 streamlit run rihai/app/streamlit_app.py         # one prisoner / roster CSV / law table
 python -m rihai.agent.run --charges "BNS 303(2)" --custody 2025-01-10 --first-time --lang mr
 python -m rihai.agent.run --roster data/samples/roster_sample.csv --out out/   # results.csv, memos, applications
@@ -85,8 +85,8 @@ days. Rihai writes the application in under a second; the citation gate passes i
 | | rows | source |
 |---|---|---|
 | BNS 2023 | 468 | sections and titles from the IPC/BNS concordance (GSMS-B, CC-BY-4.0); maximum terms encoded from the Act |
-| IPC 1860 | 183 | the sections that fill prison rosters; most undertrials today were charged before July 2024 |
-| Special Acts | 106 | NDPS (by quantity class), Arms, POCSO, Maharashtra Prohibition, MCOCA, UAPA, PMLA, IT, SC/ST, Dowry, ITPA, PC Act, MV, Electricity, Wildlife, Explosives, Gambling |
+| IPC 1860 | 190 | the sections that fill prison rosters; most undertrials today were charged before July 2024 |
+| Special Acts | 125 | NDPS (by quantity class), Arms, POCSO, Maharashtra Prohibition, MCOCA, UAPA, PMLA, IT, SC/ST, Dowry, ITPA, PC Act, MV, Electricity, Wildlife, Explosives, Gambling |
 
 Every row carries `verified` (false until a reviewer checks it against the official text on India Code) and the
 India Code handle for the Act. The engine reports which unverified rows it relied on. `data/law/verified.jsonl`
@@ -110,6 +110,16 @@ Llama API, a local vLLM). Three environment variables or Streamlit secrets confi
 template mode. A rewrite is accepted only if the gate passes, it cites no fewer provisions than the template, and
 every anchor fact (custody date, assessment date, eligibility date, days served, controlling section) is present
 verbatim. Otherwise the template is returned with the reason.
+
+## Checked against court orders
+
+`data/validation/court_orders.csv` holds 19 published High Court orders on Section 479 claims (document ids, charged
+sections, custody dates, results; no names). `python scripts/court_orders_eval.py` runs the engine on each and
+compares. As of 25 October 2026 the engine and the court agree on 13; in the other 6 the court released although the
+statute read strictly did not require it (a life-punishable section in the FIR that the court set aside, the NDPS
+five-year directions, plain discretion); in none did the engine call someone eligible whom a court refused. The
+exercise exposed and fixed three gaps (derivative sections such as IPC 120B, harmless ambiguity, missing Acts).
+Details in [`docs/validation.md`](docs/validation.md).
 
 ## Pilot
 

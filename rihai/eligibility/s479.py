@@ -90,6 +90,7 @@ class Assessment:
     release_mode: Optional[str] = None         # "bond" (first-time) or "bail"
     reasons: list[str] = field(default_factory=list)
     unverified: list[str] = field(default_factory=list)   # rows used that nobody has checked against India Code yet
+    flags: list[str] = field(default_factory=list)        # machine-readable hints: EXCLUSION_HINGES_ON:<key>, NDPS_FIVE_YEAR_RULE
 
     @property
     def eligible(self) -> bool:
@@ -112,6 +113,7 @@ class Assessment:
             "first_time_offender": self.prisoner.first_time_offender,
             "reasons": self.reasons,
             "unverified": self.unverified,
+            "flags": self.flags,
         }
 
 
@@ -143,6 +145,26 @@ def _add_years(d: date, years: float) -> date:
     return d + timedelta(days=int(round(years * 365.25)))
 
 
+# Sections that carry no punishment of their own: they borrow the principal offence's. On a charge-sheet they ride
+# alongside the substantive section (IPC 379 r/w 34; NDPS 21(c)/29), so they never raise the maximum and must not stall
+# the assessment. If every charge is derivative there is nothing to borrow from -> NEEDS_REVIEW.
+#   IPC 34 / BNS 3(5)   common intention            IPC 149 / BNS 190   unlawful assembly, constructive liability
+#   IPC 109, 114 / BNS 49, 54  abetment             IPC 120B, 120B(1) / BNS 61(2), 61(2)(a)  conspiracy to a 2y+ offence
+#   IPC 511 / BNS 62    attempt (half the term)     IPC 471 / BNS 340(2) using a forged document (as the forgery charged)
+#   NDPS 25 (allowing premises) and 29 (abetment/conspiracy): "punishable with the punishment provided for the offence"
+DERIVATIVE = {
+    ("IPC", "34"), ("IPC", "109"), ("IPC", "114"), ("IPC", "149"), ("IPC", "120B"), ("IPC", "120B(1)"), ("IPC", "511"), ("IPC", "471"),
+    ("BNS", "3(5)"), ("BNS", "49"), ("BNS", "54"), ("BNS", "190"), ("BNS", "61(2)"), ("BNS", "61(2)(a)"), ("BNS", "62"), ("BNS", "340(2)"),
+    ("NDPS", "25"), ("NDPS", "29"),
+}
+
+
+def _is_derivative(c: Charge) -> bool:
+    from ..law.table import ACT_ALIASES
+    act = ACT_ALIASES.get(c.act.strip().upper(), c.act.strip().upper())
+    return (act, c.section.strip().upper().replace(" ", "")) in DERIVATIVE
+
+
 def assess(p: Prisoner, as_of: Optional[date] = None) -> Assessment:
     as_of = as_of or date.today()
     a = Assessment(status=Status.NEEDS_REVIEW, as_of=as_of, prisoner=p)
@@ -151,9 +173,19 @@ def assess(p: Prisoner, as_of: Optional[date] = None) -> Assessment:
         a.reasons.append("no charges given")
         return a
 
-    # 1. Resolve every charge. Unknown -> refuse. Umbrella -> needs the sub-section.
+    # 0. Set aside the derivative sections (34, 120B, 511, NDPS 29 ...): they take the principal offence's punishment.
+    principal = [c for c in p.charges if not _is_derivative(c)]
+    derivative = [c for c in p.charges if _is_derivative(c)]
+    if derivative and not principal:
+        a.reasons.append(f"{', '.join(str(c) for c in derivative)}: punished as the principal offence, and no principal offence is charged; specify it.")
+        return a
+    if derivative:
+        a.reasons.append(f"{', '.join(str(c) for c in derivative)}: punished as the principal offence; the maximum is taken from the substantive sections.")
+
+    # 1. Resolve every charge. Unknown -> refuse. Umbrella (bare section with differing sub-sections) -> see step 1b.
     rows: list[Row] = []
-    for c in p.charges:
+    umbrellas: list[Row] = []
+    for c in principal:
         try:
             r = lookup(c.act, c.section)
         except UnknownSection as e:
@@ -161,20 +193,59 @@ def assess(p: Prisoner, as_of: Optional[date] = None) -> Assessment:
             a.reasons.append(str(e))
             return a
         if r.umbrella:
-            a.status = Status.NEEDS_REVIEW
-            a.reasons.append(f"{r.key}: specify the sub-section; variants {_variants_with_maxima(r)}. {r.notes}".strip())
-            return a
+            umbrellas.append(r)
+            continue
         rows.append(r)
         if not r.verified:
             a.unverified.append(r.key)
+
+    # 1b. An ambiguous bare section stalls the assessment only if the answer could depend on it: if every variant's
+    #     ceiling is at or below the ceiling of a section that is already resolved, the ambiguity cannot change the
+    #     threshold and is noted instead. A variant carrying life or death, or no ceiling, always needs a human.
+    settled_max = max((r.max_years for r in rows if r.max_years is not None), default=None)
+    settled_excluded = any(r.excluded_life_or_death for r in rows)
+    for u in umbrellas:
+        variants = []
+        for v in u.variants:
+            try:
+                variants.append(lookup(u.act, v))
+            except UnknownSection:
+                variants = []
+                break
+        harmless = (bool(variants) and not settled_excluded and settled_max is not None
+                    and all(not vr.excluded_life_or_death and not vr.life_if and vr.max_years is not None and vr.max_years <= settled_max
+                            for vr in variants))
+        if harmless:
+            a.reasons.append(f"{u.key}: sub-section not specified ({_variants_with_maxima(u)}); it cannot exceed the controlling maximum, so it does not change the threshold.")
+            continue
+        a.status = Status.NEEDS_REVIEW
+        a.reasons.append(f"{u.key}: specify the sub-section; variants {_variants_with_maxima(u)}. {u.notes}".strip())
+        return a
+    if not rows:
+        a.reasons.append("no substantive section could be resolved")
+        return a
     a.rows = rows
 
     # 2. Statutory exclusion: any offence with death or life as a specified punishment.
-    for r in rows:
-        if r.excluded_life_or_death:
-            a.status = Status.EXCLUDED_LIFE_OR_DEATH
+    excluded_rows = [r for r in rows if r.excluded_life_or_death]
+    if excluded_rows:
+        a.status = Status.EXCLUDED_LIFE_OR_DEATH
+        for r in excluded_rows:
             a.reasons.append(f"{r.key} ({r.title or 'untitled'}): {'death' if r.death else 'life imprisonment'} is a specified punishment; s.479 does not apply. {r.notes}".strip())
-            return a
+        # Courts regularly treat a graver section in the FIR as not made out at the charge stage (IPC 409 alongside
+        # 420, 467 alongside 468). Say what the position would be on the remaining sections so counsel can argue it.
+        remaining = [r for r in rows if not r.excluded_life_or_death and not r.life_if and r.max_years]
+        if remaining:
+            alt = max(remaining, key=lambda r: r.max_years)
+            frac = 1 / 3 if p.first_time_offender else 1 / 2
+            alt_on = _add_years(p.custody_start, alt.max_years * frac) + timedelta(days=max(0, p.delay_attributable_days))
+            a.flags.append("EXCLUSION_HINGES_ON:" + ",".join(r.key for r in excluded_rows))
+            a.reasons.append(
+                f"The exclusion rests on {', '.join(r.key for r in excluded_rows)} alone. If that section is not pressed at the charge stage, "
+                f"the controlling section is {alt.key} ({alt.max_years:g} years) and the {'one-third' if p.first_time_offender else 'one-half'} "
+                f"threshold {'was' if as_of >= alt_on else 'is'} reached on {alt_on.isoformat()}."
+            )
+        return a
 
     # 3. Conditional life (e.g. attempt to murder if hurt caused) -> a human must look at the FIR.
     for r in rows:
@@ -234,6 +305,15 @@ def assess(p: Prisoner, as_of: Optional[date] = None) -> Assessment:
     else:
         a.status = Status.NOT_YET
         a.reasons.append(f"threshold for {controlling.key} ({controlling.max_years:g} years x {'1/3' if p.first_time_offender else '1/2'}) is reached on {a.eligible_on.isoformat()}; {(a.eligible_on - as_of).days} days to go.")
+        # Supreme Court Legal Aid Committee v. Union of India (1994) 6 SCC 731, reaffirmed in Satender Kumar Antil (2022):
+        # an undertrial charged with an NDPS offence carrying a minimum of ten years who has been in custody for five
+        # years may be released on bail (with a Rs 1 lakh bond), s.37 notwithstanding. Not s.479, but the same list.
+        if any(r.act == "NDPS" and (r.min_years or 0) >= 10 for r in rows) and a.days_served is not None and a.days_served >= 5 * 365:
+            a.flags.append("NDPS_FIVE_YEAR_RULE")
+            a.reasons.append(
+                f"NDPS commercial quantity, {a.days_served} days in custody: the five-year directions in Supreme Court Legal Aid "
+                f"Committee v. Union of India (1994) 6 SCC 731, reaffirmed in Satender Kumar Antil (2022), may apply; refer to counsel."
+            )
 
     if a.unverified:
         a.reasons.append(f"law-table rows not yet verified against India Code: {', '.join(a.unverified)}. A reviewer must confirm the maximum term before filing.")
