@@ -211,3 +211,35 @@ def test_ndps_five_year_directions_are_flagged():
     assert a.status == Status.NOT_YET and "NDPS_FIVE_YEAR_RULE" in a.flags
     b = assess(Prisoner(charges=[Charge("NDPS", "21(commercial)")], custody_start=_d(2023, 1, 1), first_time_offender=False), as_of=_d(2025, 6, 1))
     assert "NDPS_FIVE_YEAR_RULE" not in b.flags
+
+
+def test_multiple_cases_flag_only_when_threshold_reached():
+    from datetime import date as _d
+    # Leena Paulose (Delhi HC, 05.05.2026): PMLA 3/4, custody since 09.10.2021, other cases pending, more than one-half served
+    a = assess(Prisoner(charges=[Charge("PMLA", "3"), Charge("PMLA", "4")], custody_start=_d(2021, 10, 9), first_time_offender=False, multiple_cases_pending=True),
+               as_of=_d(2026, 5, 5))
+    assert a.status == Status.EXCLUDED_MULTIPLE_CASES and "MULTIPLE_CASES_THRESHOLD_MET" in a.flags
+    assert any("Badshah Majid Malik" in r for r in a.reasons)
+    # the same person a year earlier: excluded, threshold not yet reached, no flag
+    b = assess(Prisoner(charges=[Charge("PMLA", "3"), Charge("PMLA", "4")], custody_start=_d(2021, 10, 9), first_time_offender=False, multiple_cases_pending=True),
+               as_of=_d(2024, 5, 5))
+    assert b.status == Status.EXCLUDED_MULTIPLE_CASES and "MULTIPLE_CASES_THRESHOLD_MET" not in b.flags
+
+
+def test_definitional_sections_take_the_punishing_sections_maximum():
+    from datetime import date as _d
+    a = assess(Prisoner(charges=[Charge("PMLA", "3")], custody_start=_d(2022, 10, 10), first_time_offender=True), as_of=_d(2024, 9, 12))
+    # Manik Bhattacharya (Calcutta HC, 12.09.2024): "short of about four months" of one-third of seven years
+    assert a.status == Status.NOT_YET and a.eligible_on == _d(2025, 2, 10)
+    b = assess(Prisoner(charges=[Charge("NDPS", "8(c)"), Charge("NDPS", "20(commercial)"), Charge("NDPS", "29")], custody_start=_d(2022, 12, 19), first_time_offender=False),
+               as_of=_d(2024, 11, 20))
+    assert b.status == Status.NOT_YET and b.controlling.key == "NDPS/20(commercial)"
+
+
+def test_umbrella_review_lists_variant_maxima():
+    from datetime import date as _d
+    a = assess(Prisoner(charges=[Charge("ARMS", "25(1B)"), Charge("ARMS", "26"), Charge("ARMS", "35")], custody_start=_d(2023, 8, 31), first_time_offender=False),
+               as_of=_d(2025, 6, 27))
+    assert a.status == Status.NEEDS_REVIEW
+    assert any("ARMS/26(1) 7y" in r and "ARMS/26(2) 10y" in r for r in a.reasons)
+    assert not any("no ceiling" in r for r in a.reasons)

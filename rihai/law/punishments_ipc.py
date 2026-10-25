@@ -169,6 +169,7 @@ _("427", 2, notes="Mischief causing damage to the amount of fifty rupees: up to 
 _("429", 5, notes="Mischief by killing or maiming cattle etc. of any value or any animal of value of fifty rupees: up to 5 years, or fine, or both.")
 _("435", 7, notes="Mischief by fire or explosive substance with intent to cause damage to amount of one hundred rupees: up to 7 years and fine.")
 _("436", 10, life=True, notes="Mischief by fire or explosive substance with intent to destroy house etc.: life, or up to 10 years, and fine.")
+_("440", 5, notes="Mischief committed after preparation made for causing death or hurt: up to 5 years and fine.")
 _("447", 0.25, notes="Criminal trespass: up to 3 months, or fine up to 500, or both.")
 _("448", 1, notes="House-trespass: up to 1 year, or fine up to 1,000, or both.")
 _("449", 10, life=True, notes="House-trespass in order to commit offence punishable with death: life, or RI up to 10 years, and fine.")

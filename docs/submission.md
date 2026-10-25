@@ -36,7 +36,7 @@ find those people.
 ## What you built
 
 Rihai takes a prison roster (charge sections, custody start date, prior convictions, pending cases) and computes
-Section 479 eligibility deterministically against a law table of maximum sentences (783 rows: BNS 2023, IPC 1860,
+Section 479 eligibility deterministically against a law table of maximum sentences (800 rows: BNS 2023, IPC 1860,
 17 special Acts). Every rule in the engine maps to a line of the section; unknown sections are refused, ambiguous
 ones come back as "needs review" with the reason, life and death offences are excluded as the section requires.
 For every eligible prisoner it drafts the application to the court and the memo for the DLSA/Undertrial Review
@@ -53,12 +53,13 @@ model's final answer and sends it back if a section does not resolve. The model 
 date or a maximum term or invent a section. A second, optional prose layer lets any OpenAI-compatible model
 rewrite a draft, and its text is used only if the gate passes and every date, day count and section is unchanged.
 With no model configured, Rihai still works end to end. Rihai files nothing and decides nothing: legal-aid counsel
-reviews, the court decides. 58 automated tests. MIT licence. No prisoner name anywhere in the code or data.
+reviews, the court decides. 61 automated tests. MIT licence. No prisoner name anywhere in the code or data.
 
-Checked against the courts: we ran the engine on 19 published High Court orders deciding Section 479 claims
-(`docs/validation.md`). Engine and court agree on 13; in the other 6 the court released although the statute read
-strictly did not require it; in none did the engine call a prisoner eligible whom a court refused. The exercise found
-and fixed three gaps in the engine before any prisoner's file touched it.
+Checked against the courts: we ran the engine on 34 published orders of the Supreme Court and thirteen High Courts
+deciding Section 479 claims (`docs/validation.md`). Engine and court agree on 19; in 14 the court released although the
+statute read strictly did not require it (Article 21, a life-punishable section the court set aside, s.479(2) read
+narrowly); in none did the engine call a prisoner eligible whom a court refused. The exercise found and fixed gaps in
+the engine and the law table before any prisoner's file touched it.
 
 Impact area on the hackathon site: Timely Justice / Legal Backlog.
 
@@ -104,7 +105,7 @@ Write only what happened. A line with no real number is deleted, not estimated.
 - Applications drafted: [n]. Filed through the Legal Aid Defence Counsel: [n]. Orders received: [n], people
   released: [n]
 - Time per case, clinic's own estimate before and measured with Rihai: [minutes]
-- Law-table rows verified against India Code by law students: [n] of 783
+- Law-table rows verified against India Code by law students: [n] of 800
 - Letter of intent / MoU / written feedback: [who, date, attached to the issue]
 
 ## Track / category

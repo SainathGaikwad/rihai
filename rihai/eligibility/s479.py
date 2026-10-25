@@ -121,8 +121,9 @@ def _variants_with_maxima(r) -> str:
     """'303(2) 3y, 303(3) 7y' so a reviewer sees the thresholds at stake without a second lookup."""
     out = []
     for v in r.variants:
+        act, sec = v.split("/", 1) if "/" in v else (r.act, v)     # variants are stored as full keys, "ARMS/26(1)"
         try:
-            row = lookup(r.act, v)
+            row = lookup(act, sec)
         except UnknownSection:
             out.append(v)
             continue
@@ -155,7 +156,8 @@ def _add_years(d: date, years: float) -> date:
 DERIVATIVE = {
     ("IPC", "34"), ("IPC", "109"), ("IPC", "114"), ("IPC", "149"), ("IPC", "120B"), ("IPC", "120B(1)"), ("IPC", "511"), ("IPC", "471"),
     ("BNS", "3(5)"), ("BNS", "49"), ("BNS", "54"), ("BNS", "190"), ("BNS", "61(2)"), ("BNS", "61(2)(a)"), ("BNS", "62"), ("BNS", "340(2)"),
-    ("NDPS", "25"), ("NDPS", "29"),
+    ("NDPS", "25"), ("NDPS", "28"), ("NDPS", "29"), ("NDPS", "8"), ("NDPS", "8(C)"), ("NDPS", "8(B)"),
+    ("ARMS", "35"),   # criminal responsibility of persons in occupation of premises: punished as for the contravention itself
 }
 
 
@@ -293,6 +295,16 @@ def assess(p: Prisoner, as_of: Optional[date] = None) -> Assessment:
     if p.multiple_cases_pending:
         a.status = Status.EXCLUDED_MULTIPLE_CASES
         a.reasons.append("s.479(2): investigation, inquiry or trial in more than one case is pending; not to be released under s.479(1). The third proviso (maximum-term cap) still applies. Verify the other case(s) are live and not disposed.")
+        if as_of >= a.eligible_on:
+            # The statute reads as a bar; several courts have released anyway, and the Supreme Court granted the first proviso to an
+            # accused facing both the scheduled offence and the PMLA case without discussing s.479(2).
+            a.flags.append("MULTIPLE_CASES_THRESHOLD_MET")
+            a.reasons.append(
+                f"The {'one-third' if p.first_time_offender else 'one-half'} threshold itself was reached on {a.eligible_on.isoformat()}. "
+                "Courts have read s.479(2) narrowly and released in such cases (Badshah Majid Malik v. Directorate of Enforcement, SC, "
+                "SLP (Crl) 10846/2024, 18.10.2024; V R Rajesh v. Directorate of Enforcement, Karnataka HC, Crl.P 7678/2025, 17.07.2025; "
+                "Leena Paulose v. Directorate of Enforcement, Delhi HC, Bail Appln. 4657/2024, 05.05.2026). A point for counsel, not for the engine."
+            )
         return a
 
     if as_of >= a.eligible_on:

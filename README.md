@@ -41,7 +41,7 @@ Nothing in Rihai files anything, sends anything or decides anything. Legal-aid c
 ## How it fits together
 
 ```
- roster CSV / one case                      law table (783 rows, verified flags)
+ roster CSV / one case                      law table (800 rows, verified flags)
         |                                              |
         v                                              v
  rihai/eligibility/s479.py  <----- lookup -----  rihai/law/table.py
@@ -66,7 +66,7 @@ The model never sees a tool that can compute a date or a maximum term. It can lo
 
 ```bash
 pip install -r requirements.txt
-python -m pytest -q                              # 58 tests: rule, gate, three languages, model contract, guardrails, app
+python -m pytest -q                              # 61 tests: rule, gate, three languages, model contract, guardrails, app
 streamlit run rihai/app/streamlit_app.py         # one prisoner / roster CSV / law table
 python -m rihai.agent.run --charges "BNS 303(2)" --custody 2025-01-10 --first-time --lang mr
 python -m rihai.agent.run --roster data/samples/roster_sample.csv --out out/   # results.csv, memos, applications
@@ -113,13 +113,15 @@ verbatim. Otherwise the template is returned with the reason.
 
 ## Checked against court orders
 
-`data/validation/court_orders.csv` holds 19 published High Court orders on Section 479 claims (document ids, charged
-sections, custody dates, results; no names). `python scripts/court_orders_eval.py` runs the engine on each and
-compares. As of 25 October 2026 the engine and the court agree on 13; in the other 6 the court released although the
-statute read strictly did not require it (a life-punishable section in the FIR that the court set aside, the NDPS
-five-year directions, plain discretion); in none did the engine call someone eligible whom a court refused. The
-exercise exposed and fixed three gaps (derivative sections such as IPC 120B, harmless ambiguity, missing Acts).
-Details in [`docs/validation.md`](docs/validation.md).
+`data/validation/court_orders.csv` holds 34 published orders of the Supreme Court and thirteen High Courts on Section
+479 claims (document ids, charged sections, custody dates, results; no names). `python scripts/court_orders_eval.py`
+runs the engine on each and compares. As of 25 October 2026 the engine and the court agree on 19; in 14 the court
+released although the statute read strictly did not require it (a life-punishable section in the FIR that the court set
+aside, Article 21 after prolonged custody, s.479(2) read narrowly, the NDPS five-year directions); in one the order did
+not state the sub-section and the engine asked for it; **in none did the engine call someone eligible whom a court
+refused.** The exercise exposed and fixed gaps (derivative sections such as IPC 120B, harmless ambiguity, missing Acts
+and sections) and added the `MULTIPLE_CASES_THRESHOLD_MET` flag with the citations counsel would use. Details in
+[`docs/validation.md`](docs/validation.md).
 
 ## Pilot
 

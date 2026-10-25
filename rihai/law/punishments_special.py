@@ -17,7 +17,9 @@ def _(key, max_years=None, *, min_years=0, life=False, death=False, life_if=None
 
 # ---- Narcotic Drugs and Psychotropic Substances Act, 1985
 for sec, what in [("20", "cannabis"), ("21", "manufactured drugs and preparations"), ("22", "psychotropic substances"),
-                  ("8/20", "cannabis (charged as s.8 r/w s.20)"), ("8/21", "manufactured drugs (s.8 r/w s.21)"), ("8/22", "psychotropic substances (s.8 r/w s.22)")]:
+                  ("23", "import into, export from or transhipment through India"),
+                  ("8/20", "cannabis (charged as s.8 r/w s.20)"), ("8/21", "manufactured drugs (s.8 r/w s.21)"), ("8/22", "psychotropic substances (s.8 r/w s.22)"),
+                  ("8/23", "import or export (s.8 r/w s.23)")]:
     base = sec.replace("8/", "")
     _(f"NDPS/{sec}(small)", 1, notes=f"NDPS s.{base}, {what}, small quantity: RI up to 1 year, or fine up to 10,000, or both.")
     _(f"NDPS/{sec}(intermediate)", 10, notes=f"NDPS s.{base}, {what}, quantity between small and commercial: RI up to 10 years and fine up to 1 lakh.")
@@ -34,6 +36,7 @@ _("NDPS/18(commercial)", 20, min_years=10, notes="NDPS s.18, commercial quantity
 _("NDPS/18", umbrella=True, variants=["NDPS/18(small)", "NDPS/18(intermediate)", "NDPS/18(commercial)"], notes="Specify quantity class.")
 _("NDPS/27", 1, notes="NDPS s.27, consumption: RI up to 1 year (cocaine, morphine, heroin etc.) or up to 6 months (other), or fine, or both. Max 1.")
 _("NDPS/27A", 20, min_years=10, notes="NDPS s.27A, financing illicit traffic and harbouring offenders: RI 10 to 20 years and fine 1 to 2 lakh.")
+_("NDPS/28", None, notes="NDPS s.28, attempt: punished as for the offence attempted - resolve against the principal section and quantity.")
 _("NDPS/29", None, notes="NDPS s.29, abetment and criminal conspiracy: punished as for the offence - resolve against the principal section and quantity.")
 _("NDPS/31A", 0, death=True, notes="NDPS s.31A, repeat offender, certain quantities: death (discretionary after 2014 amendment) - excluded.")
 
@@ -45,6 +48,10 @@ _("ARMS/25(1B)", 3, min_years=1, notes="Arms Act s.25(1B): acquisition or posses
 _("ARMS/25(8)", 10, notes="Arms Act s.25(8): use of firearm in celebratory gunfire endangering life: up to 2 years, or fine up to 1 lakh, or both. Reviewer to confirm.")
 _("ARMS/25(9)", 10, min_years=10, life=True, notes="Arms Act s.25(9): organised crime syndicate involvement: not less than 10 years, may extend to life.")
 _("ARMS/25", umbrella=True, variants=["ARMS/25(1)", "ARMS/25(1A)", "ARMS/25(1AA)", "ARMS/25(1B)"], notes="Specify sub-section.")
+_("ARMS/26(1)", 7, min_years=0.5, notes="Arms Act s.26(1): secret contravention of ss.3, 4, 10 or 12: 6 months to 7 years and fine.")
+_("ARMS/26(2)", 10, min_years=5, notes="Arms Act s.26(2): secret contravention of ss.5, 6, 7 or 11: 5 to 10 years and fine.")
+_("ARMS/26(3)", 10, notes="Arms Act s.26(3): concealing arms or ammunition during a search under s.22: up to 10 years and fine.")
+_("ARMS/26", umbrella=True, variants=["ARMS/26(1)", "ARMS/26(2)", "ARMS/26(3)"], notes="Specify sub-section: (1) up to 7 years, (2) up to 10, (3) up to 10.")
 _("ARMS/27(1)", 7, min_years=3, notes="Arms Act s.27(1): using arms in contravention of s.5: 3 to 7 years and fine.")
 _("ARMS/27(2)", 10, min_years=7, notes="Arms Act s.27(2): using prohibited arms in contravention of s.7: 7 to 10 years and fine.")
 _("ARMS/27(3)", 0, death=True, life=True, notes="Arms Act s.27(3): use of prohibited arms resulting in death: death or life (death mandatory portion struck down in State of Punjab v Dalbir Singh, 2012).")
@@ -90,6 +97,7 @@ _("UAPA/38", 10, notes="UAPA s.38: membership of a terrorist organisation: up to
 _("UAPA/39", 10, notes="UAPA s.39: support to a terrorist organisation: up to 10 years, or fine, or both.")
 
 # ---- Prevention of Money-Laundering Act, 2002
+_("PMLA/3", 7, min_years=3, notes="PMLA s.3 defines money-laundering; complaints cite 3/4. Punishment is s.4: RI 3 to 7 years and fine (up to 10 where proceeds relate to NDPS offences).")
 _("PMLA/4", 7, min_years=3, notes="PMLA s.4: money-laundering: RI 3 to 7 years and fine (up to 10 where proceeds relate to NDPS offences).")
 
 # ---- Information Technology Act, 2000
@@ -132,6 +140,8 @@ _("ECA/7", 7, min_years=3, notes="Essential Commodities Act s.7(1)(a)(ii): contr
 # ---- Prevention of Corruption Act, 1988
 _("PCA/7", 7, min_years=3, notes="PC Act s.7: public servant taking undue advantage: 3 to 7 years and fine.")
 _("PCA/13", 10, min_years=4, notes="PC Act s.13: criminal misconduct by public servant: 4 to 10 years and fine.")
+_("PCA/13(2)", 10, min_years=4, notes="PC Act s.13(2): punishment for criminal misconduct: 4 to 10 years and fine.")
+_("PCA/13(1)(d)", 10, min_years=4, notes="PC Act s.13(1)(d) (pre-2018 text) defines criminal misconduct; charge-sheets cite 13(1)(d) r/w 13(2). Punishment is s.13(2): 4 to 10 years and fine.")
 
 # ---- Motor Vehicles Act, 1988
 _("MV/184", 1, notes="MV Act s.184: driving dangerously: first offence 6 months to 1 year, or fine, or both; subsequent up to 2 years. Max 1 (first).")
