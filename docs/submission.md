@@ -44,7 +44,9 @@ Committee, in English, Hindi or Marathi, from the assessment alone, so no figure
 the engine computed. A citation gate then checks every statutory reference in every draft (template or
 model-written, English or Devanagari) against the law table; a bare "Section 999" blocks the draft.
 
-The agent was built in AgentFoundry on the Claude Agent SDK scaffold. The model gets six tools (`lookup_section`,
+The project lives in the AgentFoundry IDE (project `rihai`). Its built-in SMART-Code agent made changes recorded in the
+committed session transcript `.codenow/sessions/smart-code-cloud.json`, and the agent harness `rihai/agent/run.py` runs on the
+Claude Agent SDK, AgentFoundry's Claude scaffold. The model gets six tools (`lookup_section`,
 `check_eligibility`, `assess_roster_tool`, `draft_application`, `check_citations`, `law_table_stats`) and nothing
 else: built-in tools are off, a PreToolUse hook denies any other tool, a Stop hook runs the citation gate over the
 model's final answer and sends it back if a section does not resolve. The model can narrate; it cannot compute a
@@ -90,7 +92,7 @@ continuously across 1,332 prisons.
 
 Write only what happened. A line with no real number is deleted, not estimated.
 
-- Organisations met, with dates: [Prayas (TISS) Pune; Pune DLSA; ILS Law College legal-aid clinic; Symbiosis Law
+- Organisations met, with dates: [Prayas (TISS), Mumbai; Pune DLSA; ILS Law College legal-aid clinic; Symbiosis Law
   School clinic; DES Law College clinic; CHRI; Project 39A]
 - Anonymised case files run through Rihai (identifiers only): [n]
 - Found eligible by Rihai: [n]. Confirmed by the clinic's lawyer: [n]. Rihai wrong: [n], with the reason and the fix
@@ -116,7 +118,7 @@ gaikwadsainath738@gmail.com
 
 ---
 
-Attach to the issue: a screenshot of the AgentFoundry project showing the agent and its tools; the demo video link;
+Attach to the issue: the screenshot of AgentFoundry's SMART-Code panel editing the project; the demo video link;
 any written feedback from a clinic or the DLSA (with names of staff only with their consent, never a prisoner's).
 
 Sources for the numbers above: NCRB Prison Statistics India 2023 (ncrb.gov.in/uploads/files/PSI-2023.pdf; confirm

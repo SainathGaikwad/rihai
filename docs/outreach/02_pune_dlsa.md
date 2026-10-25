@@ -1,4 +1,4 @@
-**To:** The Secretary, District Legal Services Authority, Pune (District Court, Shivajinagar)
+**To:** pune-dlsa.mh@bhc.gov.in (The Secretary, District Legal Services Authority, Pune; District Court New Building, 1st Floor, Shivajinagar, Pune 411005; office 8591903612)
 **Subject:** Request for 15 minutes: a tool that prepares the Section 479 BNSS eligibility list from a prison roster
 
 Respected Sir/Madam,

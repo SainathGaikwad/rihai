@@ -1,5 +1,5 @@
-**To:** Prayas, Field Action Project of the Tata Institute of Social Sciences (Pune unit)
-**Subject:** A tool to find Section 479 BNSS-eligible undertrials in Yerawada, built by a software engineer in Pune
+**To:** prayas@tiss.edu (Prayas, Field Action Project of the Tata Institute of Social Sciences, Mumbai) · Cc: prayas@tiss.ac.in
+**Subject:** A tool to find Section 479 BNSS-eligible undertrials in Maharashtra's prisons, built by a software engineer in Pune
 
 Dear Prayas team,
 
@@ -13,9 +13,10 @@ We built it because the numbers are stark: 5.3 lakh prisoners nationally, and in
 2025 only 591 undertrials were identified under Section 479 across the country (NALSA UTRC report). The arithmetic
 is simple and nobody is running it continuously.
 
-Prayas has worked inside Yerawada on exactly this for longer than anyone. Would you be willing to run 30 to 50
-anonymised case files through it (no names, only charge sections and dates) and tell us where it is wrong? A
-15-minute call would also help us understand how the UTRC list is actually prepared in Pune.
+Prayas has worked inside Maharashtra's prisons on exactly this for longer than anyone. Would you be willing to run
+30 to 50 anonymised case files through it (no names, only charge sections and dates) and tell us where it is wrong?
+A 15-minute call would also help us understand how the UTRC list is actually prepared, and whom we should speak to
+in Pune, where we are starting with the law-college legal-aid clinics and the DLSA.
 
 You can try it in a browser at rihai-pune.streamlit.app (a sample roster is built in; no names anywhere). The code is at
 github.com/SainathGaikwad/rihai. It is MIT-licensed; you keep it whatever comes of this.

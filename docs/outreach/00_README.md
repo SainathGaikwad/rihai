@@ -4,8 +4,8 @@ Order of priority, and why:
 
 | # | Who | Why them | Ask |
 |---|---|---|---|
-| 1 | Prayas (TISS Field Action Project), custodial justice, Pune | They have worked inside Yerawada Central Prison on undertrials for decades; they hold anonymised case data and know the DLSA | Run 50 anonymised case files; 15-minute call |
-| 2 | Secretary, District Legal Services Authority, Pune (District Court, Shivajinagar) | Prepares the UTRC eligibility list; the person the output is for | 15-minute demo; a look at the UTRC Annexure A/B format |
+| 1 | Prayas (TISS Field Action Project), custodial justice, Mumbai (prayas@tiss.edu) | Work in 7 central and 3 district prisons in Maharashtra (Mumbai, Thane, Latur) on undertrials for decades; hold anonymised case data; work with the SLSA/DLSAs | Run 50 anonymised case files; 15-minute call; an introduction in Pune |
+| 2 | Secretary, District Legal Services Authority, Pune (District Court, Shivajinagar; pune-dlsa.mh@bhc.gov.in) | Prepares the UTRC eligibility list; the person the output is for | 15-minute demo; a look at the UTRC Annexure A/B format |
 | 3 | ILS Law College, Pune, legal aid clinic | Students visit Yerawada; a clinic can run files and verify calls within a week | Run case files; one student to verify the law table |
 | 4 | Symbiosis Law School, Pune, legal aid cell | Same | Same |
 | 5 | DES Shri Navalmal Firodia Law College, Pune, legal aid clinic | Same | Same |
